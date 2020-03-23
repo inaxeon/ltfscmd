@@ -19,5 +19,7 @@ Release
 *.suo
 *.vcxproj.user
 *.vcxproj.filters
+*.db
+*.opendb
 ipch
 *sdf

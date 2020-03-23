@@ -59,107 +59,144 @@ int main(int argc, char *argv[])
 	CHAR driveLetter;
 	LPCSTR logDir = DEFAULT_LOG_DIR;
 	LPCSTR workDir = DEFAULT_WORK_DIR;
-	
+
 	if (!IsElevated())
 	{
 		fprintf(stderr, "This process requires elevation.\r\n");
 		return EXIT_FAILURE;
 	}
 
-	while ((opt = getopt(argc, argv, "o:d:t:l:w:n")) != -1)
+	while ((opt = getopt(argc, argv, "o:d:t:l:w:nh?")) != -1)
 	{
 		switch (opt)
 		{
 		case 'o':
+		{
+			if (!_stricmp(optarg, "list"))
+				operation = ListDrives;
+			else if (!_stricmp(optarg, "map"))
+				operation = MapDrive;
+			else if (!_stricmp(optarg, "unmap"))
+				operation = UnmapDrive;
+			else if (!_stricmp(optarg, "start"))
+				operation = Start;
+			else if (!_stricmp(optarg, "stop"))
+				operation = Stop;
+			else if (!_stricmp(optarg, "load"))
+				operation = Load;
+			else if (!_stricmp(optarg, "loadonly"))
+				operation = LoadOnly;
+			else if (!_stricmp(optarg, "mount"))
+				operation = Mount;
+			else if (!_stricmp(optarg, "eject"))
+				operation = Eject;
+			else
 			{
-				if (!_stricmp(optarg, "list"))
-					operation = ListDrives;
-				else if (!_stricmp(optarg, "map"))
-					operation = MapDrive;
-				else if (!_stricmp(optarg, "unmap"))
-					operation = UnmapDrive;
-				else if (!_stricmp(optarg, "start"))
-					operation = Start;
-				else if (!_stricmp(optarg, "stop"))
-					operation = Stop;
-				else if (!_stricmp(optarg, "load"))
-					operation = Load;
-				else if (!_stricmp(optarg, "loadonly"))
-					operation = LoadOnly;
-				else if (!_stricmp(optarg, "mount"))
-					operation = Mount;
-				else if (!_stricmp(optarg, "eject"))
-					operation = Eject;
-				else
-				{
-					fprintf(stderr, "Invalid operation.\r\n");
-					return EXIT_FAILURE;
-				}
-				break;
-			}
-		case 'd':
-			{
-				if (strlen(optarg) != 2 || optarg[1] != ':')
-				{
-					fprintf(stderr, "Invalid format for drive letter argument.\r\n");
-					return EXIT_FAILURE;
-				}
-
-				driveLetter = toupper(optarg[0]);
-
-				if (optarg[0] < 'D' || optarg[1] > 'Z')
-				{
-					fprintf(stderr, "Invalid drive letter.\r\n");
-					return EXIT_FAILURE;
-				}
-
-				driveLetterArgFound = TRUE;
-				break;
-			}
-		case 'n':
-			{
-				showOffline = FALSE;
-				break;
-			}
-		case 'l':
-			{
-				logDir = optarg;
-				break;
-			}
-		case 'w':
-			{
-				workDir = optarg;
-				break;
-			}
-		case 't':
-			{
-				strcpy_s(driveName, sizeof(driveName), optarg);
-				_strupr_s(driveName, sizeof(driveName));
-
-				if (strlen(driveName) != 5 || strncmp(driveName, "TAPE", 4) != 0)
-				{
-					fprintf(stderr, "Invalid format for tape drive argument.\r\n");
-					return EXIT_FAILURE;
-				}
-
-				tapeIndex = driveName[4];
-
-				if (tapeIndex < '0' || tapeIndex > '9')
-				{
-					fprintf(stderr, "Invalid tape drive index\r\n");
-					return EXIT_FAILURE;
-				}
-
-				tapeIndex -= '0';
-
-				tapeDriveArgFound = TRUE;
-				break;
-			}
-		default: /* '?' */
-			{
-				fprintf(stderr, "Usage: %s\r\n", argv[0]);
+				fprintf(stderr, "Invalid operation.\r\n");
 				return EXIT_FAILURE;
 			}
+			break;
+		}
+		case 'd':
+		{
+			if (strlen(optarg) != 2 || optarg[1] != ':')
+			{
+				fprintf(stderr, "Invalid format for drive letter argument.\r\n");
+				return EXIT_FAILURE;
+			}
+
+			driveLetter = toupper(optarg[0]);
+
+			if (optarg[0] < 'D' || optarg[1] > 'Z')
+			{
+				fprintf(stderr, "Invalid drive letter.\r\n");
+				return EXIT_FAILURE;
+			}
+
+			driveLetterArgFound = TRUE;
+			break;
+		}
+		case 'n':
+		{
+			showOffline = FALSE;
+			break;
+		}
+		case 'l':
+		{
+			logDir = optarg;
+			break;
+		}
+		case 'w':
+		{
+			workDir = optarg;
+			break;
+		}
+		case 't':
+		{
+			strcpy_s(driveName, sizeof(driveName), optarg);
+			_strupr_s(driveName, sizeof(driveName));
+
+			if (strlen(driveName) != 5 || strncmp(driveName, "TAPE", 4) != 0)
+			{
+				fprintf(stderr, "Invalid format for tape drive argument.\r\n");
+				return EXIT_FAILURE;
+			}
+
+			tapeIndex = driveName[4];
+
+			if (tapeIndex < '0' || tapeIndex > '9')
+			{
+				fprintf(stderr, "Invalid tape drive index\r\n");
+				return EXIT_FAILURE;
+			}
+
+			tapeIndex -= '0';
+
+			tapeDriveArgFound = TRUE;
+			break;
+		}
+		case 'h':
+		case '?':
+		default: /* '?' */
+		{
+			fprintf(stderr, "\r\nUsage: %s -o operation [options]\r\n\r\n"
+				"List tape drives:\r\n\r\n"
+				"\t%s -o list\r\n\r\n"
+				"Map tape drive:\r\n\r\n"
+				"\t%s -o map -d DRIVE: -t TAPEn [-n]\r\n"
+				"\t\t[-l logdir] [-w workdir]\r\n\r\n"
+				"\tReplace DRIVE: with your intended drive letter i.e. T:\r\n"
+				"\tReplace TAPEn with the tape device name returned from the list\r\n"
+				"\toperation i.e. TAPE0.\r\n\r\n"
+				"\tPass -n to show all files as 'online'. Not recommended.\r\n"
+				"\tPass -l and/or -w to override default log and working\r\n"
+				"\tdirectories.\r\n\r\n"
+				"Unmap tape drive:\r\n\r\n"
+				"\t%s -o unmap -d DRIVE:\r\n\r\n"
+				"Start FUSE/LTFS Service:\r\n\r\n"
+				"\t%s -o start\r\n\r\n"
+				"\tIf the operating system was booted with the tape drive powered\r\n"
+				"\toff or disconnected, filesystem services will not have started.\r\n"
+				"\tUse this operation to start them.\r\n\r\n"
+				"Stop FUSE/LTFS Service:\r\n\r\n"
+				"\t%s -o stop\r\n\r\n"
+				"Physically load tape and mount filesystem:\r\n\r\n"
+				"\t%s -o load -d DRIVE:\r\n\r\n"
+				"Physically load tape without mounting filesystem:\r\n\r\n"
+				"\t%s -o loadonly -d DRIVE:\r\n\r\n"
+				"\tUse this if you intend to format the tape immediately.\r\n\r\n"
+				"Mount filesystem:\r\n\r\n"
+				"\t%s -o mount -d DRIVE:\r\n\r\n"
+				"\tNote that 'mounting' is a vague concept under Windows.\r\n"
+				"\tThis operation is equivilent double clicking the drive icon in\r\n"
+				"\tWindows explorer, which will cause LTFS to read the inserted\r\n"
+				"\ttape and report size/usage/label information back to the \r\n"
+				"\toperating system.\r\n\r\n"
+				"Unmount filesystem and physically eject tape:\r\n\r\n"
+				"\t%s -o eject -d DRIVE:\r\n\r\n"
+				, argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0]);
+			return EXIT_FAILURE;
+		}
 		}
 	}
 
@@ -350,7 +387,7 @@ static int UnmapTapeDrive(CHAR driveLetter)
 {
 	BYTE numMappings;
 	BOOL success;
-	
+
 	success = LtfsRegGetMappingCount(&numMappings);
 
 	if (!success)
@@ -400,7 +437,7 @@ static int LoadTapeDrive(CHAR driveLetter, BOOL mount)
 {
 	char devName[64];
 	BOOL result = FALSE;
-	
+
 	result = LtfsRegGetMappingProperties(driveLetter, devName, _countof(devName));
 
 	if (!result)
@@ -415,7 +452,7 @@ static int LoadTapeDrive(CHAR driveLetter, BOOL mount)
 	{
 		return EXIT_FAILURE;
 	}
-	
+
 	if (mount)
 	{
 		result = PollFileSystem(driveLetter);
