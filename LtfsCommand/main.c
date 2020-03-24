@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
 
     if (!IsElevated())
     {
-        fprintf(stderr, "This process requires elevation.\r\n");
+        fprintf(stderr, "\r\nThis process requires elevation.\r\n");
         return EXIT_FAILURE;
     }
 
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
                 operation = Eject;
             else
             {
-                fprintf(stderr, "Invalid operation.\r\n");
+                fprintf(stderr, "\r\nInvalid operation.\r\n");
                 return EXIT_FAILURE;
             }
             break;
@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
         {
             if (strlen(optarg) != 2 || optarg[1] != ':')
             {
-                fprintf(stderr, "Invalid format for drive letter argument.\r\n");
+                fprintf(stderr, "\r\nInvalid format for drive letter argument.\r\n");
                 return EXIT_FAILURE;
             }
 
@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
 
             if (optarg[0] < 'D' || optarg[1] > 'Z')
             {
-                fprintf(stderr, "Invalid drive letter.\r\n");
+                fprintf(stderr, "\r\nInvalid drive letter.\r\n");
                 return EXIT_FAILURE;
             }
 
@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
 
             if (strlen(driveName) != 5 || strncmp(driveName, "TAPE", 4) != 0)
             {
-                fprintf(stderr, "Invalid format for tape drive argument.\r\n");
+                fprintf(stderr, "\r\nInvalid format for tape drive argument.\r\n");
                 return EXIT_FAILURE;
             }
 
@@ -155,7 +155,7 @@ int main(int argc, char *argv[])
 
             if (tapeIndex < '0' || tapeIndex > '9')
             {
-                fprintf(stderr, "Invalid tape drive index\r\n");
+                fprintf(stderr, "\r\nInvalid tape drive index\r\n");
                 return EXIT_FAILURE;
             }
 
@@ -223,7 +223,7 @@ int main(int argc, char *argv[])
     {
         if (!driveLetterArgFound)
         {
-            fprintf(stderr, "Drive letter not specified.\r\n");
+            fprintf(stderr, "\r\nDrive letter not specified.\r\n");
             return EXIT_FAILURE;
         }
     }
@@ -232,7 +232,7 @@ int main(int argc, char *argv[])
     {
         if (!tapeDriveArgFound)
         {
-            fprintf(stderr, "Tape drive not specified.\r\n");
+            fprintf(stderr, "\r\nTape drive not specified.\r\n");
             return EXIT_FAILURE;
         }
     }
@@ -307,7 +307,7 @@ static int ListDriveMappings()
 
     if (!LtfsRegGetMappingCount(&numMappings))
     {
-        fprintf(stderr, "Failed to get mappings from registry.\r\n");
+        fprintf(stderr, "\r\nFailed to get mappings from registry.\r\n");
         return EXIT_FAILURE;
     }
 
@@ -339,7 +339,7 @@ static int StartLtfsService()
 
     if (!success)
     {
-        fprintf(stderr, "Failed to start service.\r\n");
+        fprintf(stderr, "\r\nFailed to start service.\r\n");
         return EXIT_FAILURE;
     }
 
@@ -352,7 +352,7 @@ static int StopLtfsService()
 
     if (!success)
     {
-        fprintf(stderr, "Failed to stop service.\r\n");
+        fprintf(stderr, "\r\nFailed to stop service.\r\n");
         return EXIT_FAILURE;
     }
 
@@ -368,7 +368,7 @@ static int MapTapeDrive(CHAR driveLetter, LPCSTR tapeDrive, BYTE tapeIndex, LPCS
 
     if (PollFileSystem(driveLetter))
     {
-        fprintf(stderr, "Drive letter %c: already in use.\r\n", driveLetter);
+        fprintf(stderr, "\r\nDrive letter %c: already in use.\r\n", driveLetter);
         return EXIT_FAILURE;
     }
 
@@ -384,14 +384,14 @@ static int MapTapeDrive(CHAR driveLetter, LPCSTR tapeDrive, BYTE tapeIndex, LPCS
 
                 if (LtfsRegGetMappingProperties(driveLetter, NULL, 0, NULL, 0))
                 {
-                    fprintf(stderr, "Mapping for %c: arleady exists.\r\n", driveLetter);
+                    fprintf(stderr, "\r\nMapping for %c: arleady exists.\r\n", driveLetter);
                 }
                 else
                 {
                     success = LtfsRegCreateMapping(driveLetter, tapeDrive, drive->SerialNumber, logDir, workDir, showOffline);
 
                     if (!success)
-                        fprintf(stderr, "Failed to create registry entries.\r\n");
+                        fprintf(stderr, "\r\nFailed to create registry entries.\r\n");
                 }
 
                 break;
@@ -404,7 +404,7 @@ static int MapTapeDrive(CHAR driveLetter, LPCSTR tapeDrive, BYTE tapeIndex, LPCS
 
         if (!driveFound)
         {
-            fprintf(stderr, "Drive %s not found.\r\n", tapeDrive);
+            fprintf(stderr, "\r\nDrive %s not found.\r\n", tapeDrive);
             return EXIT_FAILURE;
         }
 
@@ -417,7 +417,7 @@ static int MapTapeDrive(CHAR driveLetter, LPCSTR tapeDrive, BYTE tapeIndex, LPCS
 
         if (!success)
         {
-            fprintf(stderr, "Failed to stop LTFS service.\r\n");
+            fprintf(stderr, "\r\nFailed to stop LTFS service.\r\n");
             return EXIT_FAILURE;
         }
 
@@ -425,7 +425,7 @@ static int MapTapeDrive(CHAR driveLetter, LPCSTR tapeDrive, BYTE tapeIndex, LPCS
 
         if (!success)
         {
-            fprintf(stderr, "Failed to start LTFS service.\r\n");
+            fprintf(stderr, "\r\nFailed to start LTFS service.\r\n");
             return EXIT_FAILURE;
         }
 
@@ -434,7 +434,7 @@ static int MapTapeDrive(CHAR driveLetter, LPCSTR tapeDrive, BYTE tapeIndex, LPCS
         return EXIT_SUCCESS;
     }
 
-    fprintf(stderr, "No tape drives found.\r\n");
+    fprintf(stderr, "\r\nNo tape drives found.\r\n");
     return EXIT_FAILURE;
 }
 
@@ -447,13 +447,13 @@ static int UnmapTapeDrive(CHAR driveLetter)
 
     if (!success)
     {
-        fprintf(stderr, "Failed to get mappings from registry.\r\n");
+        fprintf(stderr, "\r\nFailed to get mappings from registry.\r\n");
         return EXIT_FAILURE;
     }
 
     if (!numMappings)
     {
-        fprintf(stderr, "No drives currently mapped.\r\n");
+        fprintf(stderr, "\r\nNo drives currently mapped.\r\n");
         return EXIT_FAILURE;
     }
 
@@ -461,7 +461,7 @@ static int UnmapTapeDrive(CHAR driveLetter)
 
     if (!success)
     {
-        fprintf(stderr, "Failed to remove mapping from registry.\r\n");
+        fprintf(stderr, "\r\nFailed to remove mapping from registry.\r\n");
         return EXIT_FAILURE;
     }
 
@@ -470,7 +470,7 @@ static int UnmapTapeDrive(CHAR driveLetter)
     success = FuseStopService();
     if (!success)
     {
-        fprintf(stderr, "Failed to stop LTFS service.\r\n");
+        fprintf(stderr, "\r\nFailed to stop LTFS service.\r\n");
         return EXIT_FAILURE;
     }
 
@@ -480,7 +480,7 @@ static int UnmapTapeDrive(CHAR driveLetter)
 
         if (!success)
         {
-            fprintf(stderr, "Failed to start LTFS service.\r\n");
+            fprintf(stderr, "\r\nFailed to start LTFS service.\r\n");
             return EXIT_FAILURE;
         }
     }
@@ -495,6 +495,7 @@ static int RemapTapeDrives()
     BYTE changesMade = 0;
     DWORD numDrivesFound;
     BOOL success = FALSE;
+    BOOL firstOutput = TRUE;
 
     if (TapeGetDriveList(&driveList, &numDrivesFound))
     {
@@ -519,11 +520,17 @@ static int RemapTapeDrives()
 
                         if (!success)
                         {
-                            fprintf(stderr, "Failed to update existing mapping for %c:\r\n", driveLetter);
+                            fprintf(stderr, "\r\nFailed to update existing mapping for %c:\r\n", driveLetter);
                         }
 
                         if (success)
                         {
+                            if (firstOutput)
+                            {
+                                firstOutput = FALSE;
+                                printf("\r\n");
+                            }
+
                             printf("%c: %s [%s] -> %s\r\n", driveLetter, regDevName, regSerialNumber, devName);
                             changesMade++;
                         }
@@ -544,7 +551,7 @@ static int RemapTapeDrives()
 
                 if (!success)
                 {
-                    fprintf(stderr, "Failed to stop LTFS service.\r\n");
+                    fprintf(stderr, "\r\nFailed to stop LTFS service.\r\n");
                     return EXIT_FAILURE;
                 }
             }
@@ -553,7 +560,7 @@ static int RemapTapeDrives()
 
             if (!success)
             {
-                fprintf(stderr, "Failed to start LTFS service.\r\n");
+                fprintf(stderr, "\r\nFailed to start LTFS service.\r\n");
                 return EXIT_FAILURE;
             }
 
