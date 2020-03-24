@@ -25,8 +25,11 @@
 
 #define MAX_DEVICE_NAME     128
 #define MAX_SERIAL_NUMBER   128
+#define MAX_TRACE_TARGET    128
+#define MAX_COMMAND_LINE    1024
 
-BOOL LtfsRegCreateMapping(CHAR driveLetter, LPCSTR tapeDrive, BYTE tapeIndex, LPCSTR serialNumber, LPCSTR logDir, LPCSTR workDir, BOOL showOffline);
+BOOL LtfsRegCreateMapping(CHAR driveLetter, LPCSTR tapeDrive, LPCSTR serialNumber, LPCSTR logDir, LPCSTR workDir, BOOL showOffline);
+BOOL LtfsRegUpdateMapping(CHAR driveLetter, LPCSTR oldDevName, LPCSTR newDevName);
 BOOL LtfsRegRemoveMapping(CHAR driveLetter);
 BOOL LtfsRegGetMappingCount(BYTE *numMappings);
 BOOL LtfsRegGetMappingProperties(CHAR driveLetter, LPSTR deviceName, USHORT deviceNameLength, LPSTR serialNumber, USHORT serialNumberLength);

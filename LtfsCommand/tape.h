@@ -22,12 +22,13 @@
 
 #define MEMBER_SIZE(type, member) sizeof(((type *)NULL)->member)
 
-typedef struct TAPE_DRIVE {
-	UCHAR VendorId[MEMBER_SIZE(INQUIRYDATA, VendorId) + 1];
-	UCHAR ProductId[MEMBER_SIZE(INQUIRYDATA, ProductId) + 1];
-	UCHAR SerialNumber[128];
-	DWORD DevIndex;
-	struct TAPE_DRIVE * Next;
+typedef struct TAPE_DRIVE
+{
+    UCHAR VendorId[MEMBER_SIZE(INQUIRYDATA, VendorId) + 1];
+    UCHAR ProductId[MEMBER_SIZE(INQUIRYDATA, ProductId) + 1];
+    UCHAR SerialNumber[128];
+    DWORD DevIndex;
+    struct TAPE_DRIVE * Next;
 } TAPE_DRIVE, *PTAPE_DRIVE;
 
 BOOL TapeGetDriveList(PTAPE_DRIVE *driveList, PDWORD numDrivesFound);

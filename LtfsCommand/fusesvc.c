@@ -21,131 +21,131 @@
 
 BOOL FuseStartService()
 {
-	SC_HANDLE smHandle;
-	SC_HANDLE serviceHandle;
-	DWORD bytesNeeded;
-	LPQUERY_SERVICE_CONFIG serviceConfig = NULL;
-	BOOL success = FALSE;
+    SC_HANDLE smHandle;
+    SC_HANDLE serviceHandle;
+    DWORD bytesNeeded;
+    LPQUERY_SERVICE_CONFIG serviceConfig = NULL;
+    BOOL success = FALSE;
 
-	smHandle = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    smHandle = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
 
-	if (!smHandle)
-		return FALSE;
+    if (!smHandle)
+        return FALSE;
 
-	serviceHandle = OpenService(smHandle, "fuse4winsvc", SERVICE_ALL_ACCESS);
+    serviceHandle = OpenService(smHandle, "fuse4winsvc", SERVICE_ALL_ACCESS);
 
-	if (!serviceHandle)
-	{
-		CloseServiceHandle(smHandle);
-		return FALSE;
-	}
+    if (!serviceHandle)
+    {
+        CloseServiceHandle(smHandle);
+        return FALSE;
+    }
 
-	QueryServiceConfig(serviceHandle, NULL, 0, &bytesNeeded);
-	success = (bytesNeeded > 0 && GetLastError() == ERROR_INSUFFICIENT_BUFFER);
+    QueryServiceConfig(serviceHandle, NULL, 0, &bytesNeeded);
+    success = (bytesNeeded > 0 && GetLastError() == ERROR_INSUFFICIENT_BUFFER);
 
-	if (success)
-	{
-		// Ensure service is set to automatic start
-		serviceConfig = (LPQUERY_SERVICE_CONFIG)LocalAlloc(LMEM_FIXED, bytesNeeded);
-		success = QueryServiceConfig(serviceHandle, serviceConfig, bytesNeeded, &bytesNeeded);
+    if (success)
+    {
+        // Ensure service is set to automatic start
+        serviceConfig = (LPQUERY_SERVICE_CONFIG)LocalAlloc(LMEM_FIXED, bytesNeeded);
+        success = QueryServiceConfig(serviceHandle, serviceConfig, bytesNeeded, &bytesNeeded);
 
-		if (success)
-		{
-			if (serviceConfig->dwStartType != SERVICE_AUTO_START)
-			{
-				serviceConfig->dwStartType = SERVICE_AUTO_START;
-				success = ChangeServiceConfig(serviceHandle, SERVICE_NO_CHANGE, serviceConfig->dwStartType, SERVICE_NO_CHANGE, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-			}
-		}
-	}
+        if (success)
+        {
+            if (serviceConfig->dwStartType != SERVICE_AUTO_START)
+            {
+                serviceConfig->dwStartType = SERVICE_AUTO_START;
+                success = ChangeServiceConfig(serviceHandle, SERVICE_NO_CHANGE, serviceConfig->dwStartType, SERVICE_NO_CHANGE, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+            }
+        }
+    }
 
-	if (success)
-	{
-		// Start service
-		SERVICE_STATUS_PROCESS serviceData;
-		success = QueryServiceStatusEx(serviceHandle, SC_STATUS_PROCESS_INFO, (LPBYTE)&serviceData, sizeof(serviceData), &bytesNeeded);
+    if (success)
+    {
+        // Start service
+        SERVICE_STATUS_PROCESS serviceData;
+        success = QueryServiceStatusEx(serviceHandle, SC_STATUS_PROCESS_INFO, (LPBYTE)&serviceData, sizeof(serviceData), &bytesNeeded);
 
-		if (serviceData.dwCurrentState == SERVICE_STOPPED)
-		{
-			success = StartService(serviceHandle, 0, NULL);
+        if (serviceData.dwCurrentState == SERVICE_STOPPED)
+        {
+            success = StartService(serviceHandle, 0, NULL);
 
-			if (success)
-			{
-				do
-				{
-					success = QueryServiceStatusEx(serviceHandle, SC_STATUS_PROCESS_INFO, (LPBYTE)&serviceData, sizeof(serviceData), &bytesNeeded);
-					Sleep(50);
-				} while (serviceData.dwCurrentState == SERVICE_START_PENDING);
-			}
+            if (success)
+            {
+                do
+                {
+                    success = QueryServiceStatusEx(serviceHandle, SC_STATUS_PROCESS_INFO, (LPBYTE)&serviceData, sizeof(serviceData), &bytesNeeded);
+                    Sleep(50);
+                } while (serviceData.dwCurrentState == SERVICE_START_PENDING);
+            }
 
-			if (serviceData.dwCurrentState != SERVICE_RUNNING)
-				success = FALSE;
+            if (serviceData.dwCurrentState != SERVICE_RUNNING)
+                success = FALSE;
 
-		}
-		else if (serviceData.dwCurrentState != SERVICE_RUNNING)
-		{
-			success = FALSE;
-		}
-	}
+        }
+        else if (serviceData.dwCurrentState != SERVICE_RUNNING)
+        {
+            success = FALSE;
+        }
+    }
 
-	if (serviceConfig)
-		LocalFree(serviceConfig);
+    if (serviceConfig)
+        LocalFree(serviceConfig);
 
-	CloseServiceHandle(serviceHandle);
-	CloseServiceHandle(smHandle);
+    CloseServiceHandle(serviceHandle);
+    CloseServiceHandle(smHandle);
 
-	return success;
+    return success;
 }
 
 BOOL FuseStopService()
 {
-	SC_HANDLE smHandle;
-	SC_HANDLE serviceHandle;
-	DWORD bytesNeeded;
-	BOOL success = FALSE;
+    SC_HANDLE smHandle;
+    SC_HANDLE serviceHandle;
+    DWORD bytesNeeded;
+    BOOL success = FALSE;
 
-	smHandle = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    smHandle = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
 
-	if (!smHandle)
-		return FALSE;
+    if (!smHandle)
+        return FALSE;
 
-	serviceHandle = OpenService(smHandle, "fuse4winsvc", SERVICE_ALL_ACCESS);
+    serviceHandle = OpenService(smHandle, "fuse4winsvc", SERVICE_ALL_ACCESS);
 
-	if (!serviceHandle)
-	{
-		CloseServiceHandle(smHandle);
-		return FALSE;
-	}
+    if (!serviceHandle)
+    {
+        CloseServiceHandle(smHandle);
+        return FALSE;
+    }
 
-	// Stop service
-	SERVICE_STATUS_PROCESS serviceData;
-	success = QueryServiceStatusEx(serviceHandle, SC_STATUS_PROCESS_INFO, (LPBYTE)&serviceData, sizeof(serviceData), &bytesNeeded);
+    // Stop service
+    SERVICE_STATUS_PROCESS serviceData;
+    success = QueryServiceStatusEx(serviceHandle, SC_STATUS_PROCESS_INFO, (LPBYTE)&serviceData, sizeof(serviceData), &bytesNeeded);
 
-	if (serviceData.dwCurrentState == SERVICE_RUNNING)
-	{
-		SERVICE_STATUS serviceStatus;
-		success = ControlService(serviceHandle, SERVICE_CONTROL_STOP, &serviceStatus);
+    if (serviceData.dwCurrentState == SERVICE_RUNNING)
+    {
+        SERVICE_STATUS serviceStatus;
+        success = ControlService(serviceHandle, SERVICE_CONTROL_STOP, &serviceStatus);
 
-		if (success)
-		{
-			do
-			{
-				success = QueryServiceStatusEx(serviceHandle, SC_STATUS_PROCESS_INFO, (LPBYTE)&serviceData, sizeof(serviceData), &bytesNeeded);
-				Sleep(50);
-			} while (serviceData.dwCurrentState == SERVICE_STOP_PENDING);
-		}
+        if (success)
+        {
+            do
+            {
+                success = QueryServiceStatusEx(serviceHandle, SC_STATUS_PROCESS_INFO, (LPBYTE)&serviceData, sizeof(serviceData), &bytesNeeded);
+                Sleep(50);
+            } while (serviceData.dwCurrentState == SERVICE_STOP_PENDING);
+        }
 
-		if (serviceData.dwCurrentState != SERVICE_STOPPED)
-			success = FALSE;
+        if (serviceData.dwCurrentState != SERVICE_STOPPED)
+            success = FALSE;
 
-	}
-	else if (serviceData.dwCurrentState != SERVICE_STOPPED)
-	{
-		success = FALSE;
-	}
+    }
+    else if (serviceData.dwCurrentState != SERVICE_STOPPED)
+    {
+        success = FALSE;
+    }
 
-	CloseServiceHandle(serviceHandle);
-	CloseServiceHandle(smHandle);
+    CloseServiceHandle(serviceHandle);
+    CloseServiceHandle(smHandle);
 
-	return success;
+    return success;
 }

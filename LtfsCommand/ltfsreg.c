@@ -18,149 +18,193 @@
 
 #include "pch.h"
 #include "ltfsreg.h"
+#include "util.h"
 
 static BOOL LtfsRegGetInstallDir(LPSTR buffer, USHORT bufferLen);
 
-BOOL LtfsRegCreateMapping(CHAR driveLetter, LPCSTR tapeDrive, BYTE tapeIndex, LPCSTR serialNumber, LPCSTR logDir, LPCSTR workDir, BOOL showOffline)
+BOOL LtfsRegCreateMapping(CHAR driveLetter, LPCSTR tapeDrive, LPCSTR serialNumber, LPCSTR logDir, LPCSTR workDir, BOOL showOffline)
 {
-	HKEY key;
-	DWORD disposition;
-	char regKey[128];
-	BOOL success = FALSE;
-	size_t convertedChars = 0;
+    HKEY key;
+    DWORD disposition;
+    CHAR regKey[128];
+    BOOL success = FALSE;
 
-	_snprintf_s(regKey, _countof(regKey), _TRUNCATE, "Software\\Hewlett-Packard\\LTFS\\Mappings\\%c", driveLetter);
+    _snprintf_s(regKey, _countof(regKey), _TRUNCATE, "Software\\Hewlett-Packard\\LTFS\\Mappings\\%c", driveLetter);
 
-	// These registry values are read directly by FUSE4WinSvc.exe
-	if (RegCreateKeyEx(HKEY_LOCAL_MACHINE, regKey, 0, NULL, 0, KEY_READ | KEY_CREATE_SUB_KEY | KEY_SET_VALUE, NULL, &key, &disposition) == ERROR_SUCCESS)
-	{
-		success = RegSetKeyValue(key, NULL, "SerialNumber", REG_SZ, serialNumber, (DWORD)(strlen(serialNumber) + 1)) == ERROR_SUCCESS;
+    // These registry values are read directly by FUSE4WinSvc.exe
+    if (RegCreateKeyEx(HKEY_LOCAL_MACHINE, regKey, 0, NULL, 0, KEY_READ | KEY_CREATE_SUB_KEY | KEY_SET_VALUE, NULL, &key, &disposition) == ERROR_SUCCESS)
+    {
+        success = RegSetKeyValue(key, NULL, "SerialNumber", REG_SZ, serialNumber, (DWORD)(strlen(serialNumber) + 1)) == ERROR_SUCCESS;
 
-		if (success)
-		{
-			success = RegSetKeyValue(key, NULL, "DeviceName", REG_SZ, tapeDrive, (DWORD)(strlen(tapeDrive) + 1)) == ERROR_SUCCESS;
-		}
+        if (success)
+        {
+            success = RegSetKeyValue(key, NULL, "DeviceName", REG_SZ, tapeDrive, (DWORD)(strlen(tapeDrive) + 1)) == ERROR_SUCCESS;
+        }
 
-		if (success)
-		{
-			CHAR installDir[1024];
+        if (success)
+        {
+            CHAR installDir[MAX_COMMAND_LINE];
 
-			success = LtfsRegGetInstallDir(installDir, _countof(installDir));
+            success = LtfsRegGetInstallDir(installDir, _countof(installDir));
 
-			if (success)
-			{
-				char commandLine[1024];
-				_snprintf_s(commandLine, _countof(commandLine), _TRUNCATE,
-					"%s%sltfs.exe T: -o devname=%s -d -o log_directory=%s -o work_directory=%s%s",
-					installDir, installDir[strlen(installDir) - 1] == '\\' ? "" : "\\", tapeDrive, logDir, workDir, showOffline ? " -o show_offline" : "");
-				success = RegSetKeyValue(key, NULL, "CommandLine", REG_SZ, commandLine, (DWORD)(strlen(commandLine) + 1)) == ERROR_SUCCESS;
-			}
-		}
+            if (success)
+            {
+                char commandLine[MAX_COMMAND_LINE];
+                _snprintf_s(commandLine, _countof(commandLine), _TRUNCATE,
+                    "%s%sltfs.exe T: -o devname=%s -d -o log_directory=%s -o work_directory=%s%s",
+                    installDir, installDir[strlen(installDir) - 1] == '\\' ? "" : "\\", tapeDrive, logDir, workDir, showOffline ? " -o show_offline" : "");
+                success = RegSetKeyValue(key, NULL, "CommandLine", REG_SZ, commandLine, (DWORD)(strlen(commandLine) + 1)) == ERROR_SUCCESS;
+            }
+        }
 
-		if (success)
-		{
-			char traceTarget[64];
-			_snprintf_s(traceTarget, _countof(traceTarget), _TRUNCATE, "\\\\.\\pipe\\%c", driveLetter);
-			success = RegSetKeyValue(key, NULL, "TraceTarget", REG_SZ, traceTarget, (DWORD)(strlen(traceTarget) + 1)) == ERROR_SUCCESS;
-		}
+        if (success)
+        {
+            char traceTarget[MAX_TRACE_TARGET];
+            _snprintf_s(traceTarget, _countof(traceTarget), _TRUNCATE, "\\\\.\\pipe\\%c", driveLetter);
+            success = RegSetKeyValue(key, NULL, "TraceTarget", REG_SZ, traceTarget, (DWORD)(strlen(traceTarget) + 1)) == ERROR_SUCCESS;
+        }
 
-		if (success)
-		{
-			DWORD traceType = 0x00000101;
-			success = RegSetKeyValue(key, NULL, "TraceType", REG_DWORD, &traceType, sizeof(traceType)) == ERROR_SUCCESS;
-		}
+        if (success)
+        {
+            DWORD traceType = 0x00000101;
+            success = RegSetKeyValue(key, NULL, "TraceType", REG_DWORD, &traceType, sizeof(traceType)) == ERROR_SUCCESS;
+        }
 
-		RegCloseKey(key);
-	}
+        RegCloseKey(key);
+    }
 
-	return TRUE;
+    return success;
+}
+
+BOOL LtfsRegUpdateMapping(CHAR driveLetter, LPCSTR oldDevName, LPCSTR newDevName)
+{
+    HKEY key;
+    DWORD disposition;
+    CHAR regKey[128];
+    BOOL success = FALSE;
+
+    _snprintf_s(regKey, _countof(regKey), _TRUNCATE, "Software\\Hewlett-Packard\\LTFS\\Mappings\\%c", driveLetter);
+
+    if (RegCreateKeyEx(HKEY_LOCAL_MACHINE, regKey, 0, NULL, 0, KEY_READ | KEY_CREATE_SUB_KEY | KEY_SET_VALUE, NULL, &key, &disposition) == ERROR_SUCCESS)
+    {
+        success = RegSetKeyValue(key, NULL, "DeviceName", REG_SZ, newDevName, (DWORD)(strlen(newDevName) + 1)) == ERROR_SUCCESS;
+
+        if (success)
+        {
+            CHAR commandLine[MAX_COMMAND_LINE];
+            DWORD commandLen = _countof(commandLine);
+            DWORD type = REG_SZ;
+
+            success = RegQueryValueEx(key, "CommandLine", NULL, &type, commandLine, &commandLen) == ERROR_SUCCESS;
+
+            if (success)
+            {
+                // Now fix up the LTFS command line. Let's just sub the devname argument for now, otherwise we have to rebuild this string 
+                // which would be a lot more complicated.
+
+                CHAR oldDevArg[MAX_DEVICE_NAME];
+                CHAR newDevArg[MAX_DEVICE_NAME];
+
+                _snprintf_s(oldDevArg, _countof(regKey), _TRUNCATE, "devname=%s", oldDevName);
+                _snprintf_s(newDevArg, _countof(regKey), _TRUNCATE, "devname=%s", newDevName);
+
+                StringReplace(commandLine, oldDevArg, newDevArg, _countof(commandLine));
+
+                success = RegSetKeyValue(key, NULL, "CommandLine", REG_SZ, commandLine, (DWORD)(strlen(commandLine) + 1)) == ERROR_SUCCESS;
+            }
+        }
+
+        RegCloseKey(key);
+    }
+
+    return success;
 }
 
 BOOL LtfsRegRemoveMapping(CHAR driveLetter)
 {
-	char regKey[128];
+    char regKey[128];
 
-	_snprintf_s(regKey, _countof(regKey), _TRUNCATE, "Software\\Hewlett-Packard\\LTFS\\Mappings\\%c", driveLetter);
+    _snprintf_s(regKey, _countof(regKey), _TRUNCATE, "Software\\Hewlett-Packard\\LTFS\\Mappings\\%c", driveLetter);
 
-	return RegDeleteKey(HKEY_LOCAL_MACHINE, regKey) == ERROR_SUCCESS;
+    return RegDeleteKey(HKEY_LOCAL_MACHINE, regKey) == ERROR_SUCCESS;
 }
 
 BOOL LtfsRegGetMappingCount(BYTE *numMappings)
 {
-	HKEY key;
-	BYTE count = 0;
-	char driveLetter;
-	char regKey[128];
+    HKEY key;
+    BYTE count = 0;
+    char driveLetter;
+    char regKey[128];
 
-	for (driveLetter = MIN_DRIVE_LETTER; driveLetter <= MAX_DRIVE_LETTER; driveLetter++)
-	{
-		_snprintf_s(regKey, _countof(regKey), _TRUNCATE, "Software\\Hewlett-Packard\\LTFS\\Mappings\\%c", driveLetter);
+    for (driveLetter = MIN_DRIVE_LETTER; driveLetter <= MAX_DRIVE_LETTER; driveLetter++)
+    {
+        _snprintf_s(regKey, _countof(regKey), _TRUNCATE, "Software\\Hewlett-Packard\\LTFS\\Mappings\\%c", driveLetter);
 
-		LRESULT result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, regKey, 0, KEY_READ, &key);
+        LRESULT result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, regKey, 0, KEY_READ, &key);
 
-		if (result == ERROR_SUCCESS)
-		{
-			count++;
-			RegCloseKey(key);
-		}
-		else if (result != ERROR_FILE_NOT_FOUND)
-		{
-			return FALSE;
-		}
-	}
+        if (result == ERROR_SUCCESS)
+        {
+            count++;
+            RegCloseKey(key);
+        }
+        else if (result != ERROR_FILE_NOT_FOUND)
+        {
+            return FALSE;
+        }
+    }
 
-	*numMappings = count;
-	return TRUE;
+    *numMappings = count;
+    return TRUE;
 }
 
 BOOL LtfsRegGetMappingProperties(CHAR driveLetter, LPSTR deviceName, USHORT deviceNameLength, LPSTR serialNumber, USHORT serialNumberLength)
 {
-	HKEY key;
-	BYTE count = 0;
-	BOOL result = FALSE;
-	char regKey[128];
+    HKEY key;
+    BYTE count = 0;
+    BOOL result = FALSE;
+    char regKey[128];
 
-	_snprintf_s(regKey, _countof(regKey), _TRUNCATE, "Software\\Hewlett-Packard\\LTFS\\Mappings\\%c", driveLetter);
+    _snprintf_s(regKey, _countof(regKey), _TRUNCATE, "Software\\Hewlett-Packard\\LTFS\\Mappings\\%c", driveLetter);
 
-	if ((result = (RegOpenKeyEx(HKEY_LOCAL_MACHINE, regKey, 0, KEY_READ, &key) == ERROR_SUCCESS)))
-	{
-		if (deviceName && deviceNameLength)
-		{
-			DWORD value = deviceNameLength;
-			DWORD type = REG_SZ;
-			result = RegQueryValueEx(key, "DeviceName", NULL, &type, deviceName, &value) == ERROR_SUCCESS;
-		}
+    if ((result = (RegOpenKeyEx(HKEY_LOCAL_MACHINE, regKey, 0, KEY_READ, &key) == ERROR_SUCCESS)))
+    {
+        if (deviceName && deviceNameLength)
+        {
+            DWORD value = deviceNameLength;
+            DWORD type = REG_SZ;
+            result = RegQueryValueEx(key, "DeviceName", NULL, &type, deviceName, &value) == ERROR_SUCCESS;
+        }
 
-		if (serialNumber && serialNumberLength)
-		{
-			DWORD value = serialNumberLength;
-			DWORD type = REG_SZ;
-			result = RegQueryValueEx(key, "SerialNumber", NULL, &type, serialNumber, &value) == ERROR_SUCCESS;
-		}
+        if (serialNumber && serialNumberLength)
+        {
+            DWORD value = serialNumberLength;
+            DWORD type = REG_SZ;
+            result = RegQueryValueEx(key, "SerialNumber", NULL, &type, serialNumber, &value) == ERROR_SUCCESS;
+        }
 
-		RegCloseKey(key);
-	}
+        RegCloseKey(key);
+    }
 
-	return result;
+    return result;
 }
 
 static BOOL LtfsRegGetInstallDir(LPSTR buffer, USHORT bufferLen)
 {
-	HKEY key;
-	BYTE count = 0;
-	BOOL result = FALSE;
-	char regKey[128];
+    HKEY key;
+    BYTE count = 0;
+    BOOL result = FALSE;
+    char regKey[128];
 
-	strcpy_s(regKey, _countof(regKey), "Software\\Hewlett-Packard\\LTFS");
+    strcpy_s(regKey, _countof(regKey), "Software\\Hewlett-Packard\\LTFS");
 
-	if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, regKey, 0, KEY_READ, &key) == ERROR_SUCCESS)
-	{
-		DWORD value = bufferLen;
-		DWORD type = REG_SZ;
-		result = RegQueryValueEx(key, "InstallDir", NULL, &type, buffer, &value) == ERROR_SUCCESS;
+    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, regKey, 0, KEY_READ, &key) == ERROR_SUCCESS)
+    {
+        DWORD value = bufferLen;
+        DWORD type = REG_SZ;
+        result = RegQueryValueEx(key, "InstallDir", NULL, &type, buffer, &value) == ERROR_SUCCESS;
 
-		RegCloseKey(key);
-	}
+        RegCloseKey(key);
+    }
 
-	return result;
+    return result;
 }

@@ -22,3 +22,4 @@
 
 BOOL PollFileSystem(CHAR driveLetter);
 BOOL IsElevated();
+size_t StringReplace(LPSTR lpszBuf, LPCSTR lpszOld, LPCSTR lpszNew, DWORD newBufferLen);
