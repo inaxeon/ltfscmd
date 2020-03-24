@@ -26,7 +26,8 @@
 #define DEFAULT_LOG_DIR    "C:\\ProgramData\\Hewlett-Packard\\LTFS"
 #define DEFAULT_WORK_DIR   "C:\\tmp\\LTFS"
 
-typedef enum {
+typedef enum
+{
     ListDrives,
     ListMappings,
     MapDrive,
@@ -163,55 +164,53 @@ int main(int argc, char *argv[])
             tapeDriveArgFound = TRUE;
             break;
         }
-        case 'h':
-        case '?':
-        default: /* '?' */
-        {
-            fprintf(stderr, "\r\nUsage: %s -o operation [options]\r\n\r\n"
-                "List tape drives:\r\n\r\n"
-                "\t%s -o listdrives\r\n\r\n"
-                "List mappings:\r\n\r\n"
-                "\t%s -o listmappings\r\n\r\n"
-                "Map tape drive:\r\n\r\n"
-                "\t%s -o map -d DRIVE: -t TAPEn [-n]\r\n"
-                "\t\t[-l logdir] [-w workdir]\r\n\r\n"
-                "\tReplace DRIVE: with your intended drive letter i.e. T:\r\n"
-                "\tReplace TAPEn with the tape device name returned from the list\r\n"
-                "\toperation i.e. TAPE0.\r\n\r\n"
-                "\tPass -n to show all files as 'online'. Not recommended.\r\n"
-                "\tPass -l and/or -w to override default log and working\r\n"
-                "\tdirectories.\r\n\r\n"
-                "Unmap tape drive:\r\n\r\n"
-                "\t%s -o unmap -d DRIVE:\r\n\r\n"
-                "Fix existing mappings:\r\n\r\n"
-                "\t%s -o remap\r\n\r\n"
-                "\tIn some cases, particularly when drives are hot-plugged, the\r\n"
-                "\tdevice index may change i.e. from TAPE0 to TAPE1 breaking an\r\n"
-                "\texisting mapping. This operation will repair existing mappings.\r\n\r\n"
-                "Start FUSE/LTFS service:\r\n\r\n"
-                "\t%s -o start\r\n\r\n"
-                "\tIf the operating system was booted with the tape drive powered\r\n"
-                "\toff or disconnected, filesystem services will not have started.\r\n"
-                "\tUse this operation to start them.\r\n\r\n"
-                "Stop FUSE/LTFS service:\r\n\r\n"
-                "\t%s -o stop\r\n\r\n"
-                "Physically load tape and mount filesystem:\r\n\r\n"
-                "\t%s -o load -d DRIVE:\r\n\r\n"
-                "Physically load tape without mounting filesystem:\r\n\r\n"
-                "\t%s -o loadonly -d DRIVE:\r\n\r\n"
-                "\tUse this if you intend to format the tape immediately.\r\n\r\n"
-                "Mount filesystem:\r\n\r\n"
-                "\t%s -o mount -d DRIVE:\r\n\r\n"
-                "\tNote that 'mounting' is a vague concept under Windows.\r\n"
-                "\tThis operation is equivalent double clicking the drive icon in\r\n"
-                "\tWindows explorer, which will cause LTFS to read the inserted\r\n"
-                "\ttape and report size/usage/label information back to the \r\n"
-                "\toperating system.\r\n\r\n"
-                "Unmount filesystem and physically eject tape:\r\n\r\n"
-                "\t%s -o eject -d DRIVE:\r\n\r\n"
-                , argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0]);
-            return EXIT_FAILURE;
-        }
+        default:
+            {
+                fprintf(stderr, "\r\nUsage: %s -o operation [options]\r\n\r\n"
+                    "List tape drives:\r\n\r\n"
+                    "\t%s -o listdrives\r\n\r\n"
+                    "List mappings:\r\n\r\n"
+                    "\t%s -o listmappings\r\n\r\n"
+                    "Map tape drive:\r\n\r\n"
+                    "\t%s -o map -d DRIVE: -t TAPEn [-n]\r\n"
+                    "\t\t[-l logdir] [-w workdir]\r\n\r\n"
+                    "\tReplace DRIVE: with your intended drive letter i.e. T:\r\n"
+                    "\tReplace TAPEn with the tape device name returned from the list\r\n"
+                    "\toperation i.e. TAPE0.\r\n\r\n"
+                    "\tPass -n to show all files as 'online'. Not recommended.\r\n"
+                    "\tPass -l and/or -w to override default log and working\r\n"
+                    "\tdirectories.\r\n\r\n"
+                    "Unmap tape drive:\r\n\r\n"
+                    "\t%s -o unmap -d DRIVE:\r\n\r\n"
+                    "Fix existing mappings:\r\n\r\n"
+                    "\t%s -o remap\r\n\r\n"
+                    "\tIn some cases, particularly when drives are hot-plugged, the\r\n"
+                    "\tdevice index may change i.e. from TAPE0 to TAPE1 breaking an\r\n"
+                    "\texisting mapping. This operation will repair existing mappings.\r\n\r\n"
+                    "Start FUSE/LTFS service:\r\n\r\n"
+                    "\t%s -o start\r\n\r\n"
+                    "\tIf the operating system was booted with the tape drive powered\r\n"
+                    "\toff or disconnected, filesystem services will not have started.\r\n"
+                    "\tUse this operation to start them.\r\n\r\n"
+                    "Stop FUSE/LTFS service:\r\n\r\n"
+                    "\t%s -o stop\r\n\r\n"
+                    "Physically load tape and mount filesystem:\r\n\r\n"
+                    "\t%s -o load -d DRIVE:\r\n\r\n"
+                    "Physically load tape without mounting filesystem:\r\n\r\n"
+                    "\t%s -o loadonly -d DRIVE:\r\n\r\n"
+                    "\tUse this if you intend to format the tape immediately.\r\n\r\n"
+                    "Mount filesystem:\r\n\r\n"
+                    "\t%s -o mount -d DRIVE:\r\n\r\n"
+                    "\tNote that 'mounting' is a vague concept under Windows.\r\n"
+                    "\tThis operation is equivalent double clicking the drive icon in\r\n"
+                    "\tWindows explorer, which will cause LTFS to read the inserted\r\n"
+                    "\ttape and report size/usage/label information back to the \r\n"
+                    "\toperating system.\r\n\r\n"
+                    "Unmount filesystem and physically eject tape:\r\n\r\n"
+                    "\t%s -o eject -d DRIVE:\r\n\r\n"
+                    , argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0]);
+                return EXIT_FAILURE;
+            }
         }
     }
 
@@ -537,14 +536,17 @@ static int RemapTapeDrives()
 
         printf("\r\n%d mapping(s) updated.\r\n", changesMade);
 
-        if (success && changesMade)
+        if (success)
         {
-            success = FuseStopService();
-
-            if (!success)
+            if (changesMade)
             {
-                fprintf(stderr, "Failed to stop LTFS service.\r\n");
-                return EXIT_FAILURE;
+                success = FuseStopService();
+
+                if (!success)
+                {
+                    fprintf(stderr, "Failed to stop LTFS service.\r\n");
+                    return EXIT_FAILURE;
+                }
             }
 
             success = FuseStartService();
