@@ -29,7 +29,7 @@
 #define MAX_COMMAND_LINE    1024
 
 BOOL LtfsRegCreateMapping(CHAR driveLetter, LPCSTR tapeDrive, LPCSTR serialNumber, LPCSTR logDir, LPCSTR workDir, BOOL showOffline);
-BOOL LtfsRegUpdateMapping(CHAR driveLetter, LPCSTR oldDevName, LPCSTR newDevName);
+BOOL LtfsRegUpdateMapping(CHAR driveLetter, LPCSTR newDevName);
 BOOL LtfsRegRemoveMapping(CHAR driveLetter);
 BOOL LtfsRegGetMappingCount(BYTE *numMappings);
 BOOL LtfsRegGetMappingProperties(CHAR driveLetter, LPSTR deviceName, USHORT deviceNameLength, LPSTR serialNumber, USHORT serialNumberLength);

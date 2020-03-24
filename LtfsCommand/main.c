@@ -183,17 +183,17 @@ int main(int argc, char *argv[])
                 "\tdirectories.\r\n\r\n"
                 "Unmap tape drive:\r\n\r\n"
                 "\t%s -o unmap -d DRIVE:\r\n\r\n"
-                "Start FUSE/LTFS Service:\r\n\r\n"
-                "\t%s -o start\r\n\r\n"
-                "\tIf the operating system was booted with the tape drive powered\r\n"
-                "\toff or disconnected, filesystem services will not have started.\r\n"
-                "\tUse this operation to start them.\r\n\r\n"
                 "Fix existing mappings:\r\n\r\n"
                 "\t%s -o remap\r\n\r\n"
                 "\tIn some cases, particularly when drives are hot-plugged, the\r\n"
                 "\tdevice index may change i.e. from TAPE0 to TAPE1 breaking an\r\n"
                 "\texisting mapping. This operation will repair existing mappings.\r\n\r\n"
-                "Stop FUSE/LTFS Service:\r\n\r\n"
+                "Start FUSE/LTFS service:\r\n\r\n"
+                "\t%s -o start\r\n\r\n"
+                "\tIf the operating system was booted with the tape drive powered\r\n"
+                "\toff or disconnected, filesystem services will not have started.\r\n"
+                "\tUse this operation to start them.\r\n\r\n"
+                "Stop FUSE/LTFS service:\r\n\r\n"
                 "\t%s -o stop\r\n\r\n"
                 "Physically load tape and mount filesystem:\r\n\r\n"
                 "\t%s -o load -d DRIVE:\r\n\r\n"
@@ -203,7 +203,7 @@ int main(int argc, char *argv[])
                 "Mount filesystem:\r\n\r\n"
                 "\t%s -o mount -d DRIVE:\r\n\r\n"
                 "\tNote that 'mounting' is a vague concept under Windows.\r\n"
-                "\tThis operation is equivilent double clicking the drive icon in\r\n"
+                "\tThis operation is equivalent double clicking the drive icon in\r\n"
                 "\tWindows explorer, which will cause LTFS to read the inserted\r\n"
                 "\ttape and report size/usage/label information back to the \r\n"
                 "\toperating system.\r\n\r\n"
@@ -516,7 +516,7 @@ static int RemapTapeDrives()
                 {
                     if (strcmp(regSerialNumber, drive->SerialNumber) == 0 && strcmp(regDevName, devName) != 0)
                     {
-                        success = LtfsRegUpdateMapping(driveLetter, regDevName, devName);
+                        success = LtfsRegUpdateMapping(driveLetter, devName);
 
                         if (!success)
                         {

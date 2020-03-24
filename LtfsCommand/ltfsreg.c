@@ -76,7 +76,7 @@ BOOL LtfsRegCreateMapping(CHAR driveLetter, LPCSTR tapeDrive, LPCSTR serialNumbe
     return success;
 }
 
-BOOL LtfsRegUpdateMapping(CHAR driveLetter, LPCSTR oldDevName, LPCSTR newDevName)
+BOOL LtfsRegUpdateMapping(CHAR driveLetter, LPCSTR newDevName)
 {
     HKEY key;
     DWORD disposition;
@@ -87,15 +87,24 @@ BOOL LtfsRegUpdateMapping(CHAR driveLetter, LPCSTR oldDevName, LPCSTR newDevName
 
     if (RegCreateKeyEx(HKEY_LOCAL_MACHINE, regKey, 0, NULL, 0, KEY_READ | KEY_CREATE_SUB_KEY | KEY_SET_VALUE, NULL, &key, &disposition) == ERROR_SUCCESS)
     {
-        success = RegSetKeyValue(key, NULL, "DeviceName", REG_SZ, newDevName, (DWORD)(strlen(newDevName) + 1)) == ERROR_SUCCESS;
+        CHAR oldDevName[MAX_DEVICE_NAME];
+        DWORD type = REG_SZ;
+        DWORD valueLen;
+
+        valueLen = _countof(oldDevName);
+        success = RegQueryValueEx(key, "DeviceName", NULL, &type, oldDevName, &valueLen) == ERROR_SUCCESS;
+
+        if (success)
+        {
+            success = RegSetKeyValue(key, NULL, "DeviceName", REG_SZ, newDevName, (DWORD)(strlen(newDevName) + 1)) == ERROR_SUCCESS;
+        }
 
         if (success)
         {
             CHAR commandLine[MAX_COMMAND_LINE];
-            DWORD commandLen = _countof(commandLine);
-            DWORD type = REG_SZ;
 
-            success = RegQueryValueEx(key, "CommandLine", NULL, &type, commandLine, &commandLen) == ERROR_SUCCESS;
+            valueLen = _countof(commandLine);
+            success = RegQueryValueEx(key, "CommandLine", NULL, &type, commandLine, &valueLen) == ERROR_SUCCESS;
 
             if (success)
             {
@@ -108,9 +117,12 @@ BOOL LtfsRegUpdateMapping(CHAR driveLetter, LPCSTR oldDevName, LPCSTR newDevName
                 _snprintf_s(oldDevArg, _countof(regKey), _TRUNCATE, "devname=%s", oldDevName);
                 _snprintf_s(newDevArg, _countof(regKey), _TRUNCATE, "devname=%s", newDevName);
 
-                StringReplace(commandLine, oldDevArg, newDevArg, _countof(commandLine));
+                success = StringReplace(commandLine, oldDevArg, newDevArg, _countof(commandLine)) > 0;
 
-                success = RegSetKeyValue(key, NULL, "CommandLine", REG_SZ, commandLine, (DWORD)(strlen(commandLine) + 1)) == ERROR_SUCCESS;
+                if (success)
+                {
+                    success = RegSetKeyValue(key, NULL, "CommandLine", REG_SZ, commandLine, (DWORD)(strlen(commandLine) + 1)) == ERROR_SUCCESS;
+                }
             }
         }
 
