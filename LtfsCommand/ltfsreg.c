@@ -17,6 +17,7 @@
  */
 
 #include "pch.h"
+#include "ltfsreg.h"
 
 static BOOL LtfsRegGetInstallDir(LPSTR buffer, USHORT bufferLen);
 
@@ -91,7 +92,7 @@ BOOL LtfsRegGetMappingCount(BYTE *numMappings)
 	char driveLetter;
 	char regKey[128];
 
-	for (driveLetter = L'D'; driveLetter <= L'Z'; driveLetter++)
+	for (driveLetter = MIN_DRIVE_LETTER; driveLetter <= MAX_DRIVE_LETTER; driveLetter++)
 	{
 		_snprintf_s(regKey, _countof(regKey), _TRUNCATE, "Software\\Hewlett-Packard\\LTFS\\Mappings\\%c", driveLetter);
 
@@ -112,7 +113,7 @@ BOOL LtfsRegGetMappingCount(BYTE *numMappings)
 	return TRUE;
 }
 
-BOOL LtfsRegGetMappingProperties(CHAR driveLetter, LPSTR deviceName, USHORT deviceNameLength)
+BOOL LtfsRegGetMappingProperties(CHAR driveLetter, LPSTR deviceName, USHORT deviceNameLength, LPSTR serialNumber, USHORT serialNumberLength)
 {
 	HKEY key;
 	BYTE count = 0;
@@ -128,6 +129,13 @@ BOOL LtfsRegGetMappingProperties(CHAR driveLetter, LPSTR deviceName, USHORT devi
 			DWORD value = deviceNameLength;
 			DWORD type = REG_SZ;
 			result = RegQueryValueEx(key, "DeviceName", NULL, &type, deviceName, &value) == ERROR_SUCCESS;
+		}
+
+		if (serialNumber && serialNumberLength)
+		{
+			DWORD value = serialNumberLength;
+			DWORD type = REG_SZ;
+			result = RegQueryValueEx(key, "SerialNumber", NULL, &type, serialNumber, &value) == ERROR_SUCCESS;
 		}
 
 		RegCloseKey(key);

@@ -20,7 +20,13 @@
 
 #include "pch.h"
 
+#define MIN_DRIVE_LETTER    'D'
+#define MAX_DRIVE_LETTER    'Z'
+
+#define MAX_DEVICE_NAME     128
+#define MAX_SERIAL_NUMBER   128
+
 BOOL LtfsRegCreateMapping(CHAR driveLetter, LPCSTR tapeDrive, BYTE tapeIndex, LPCSTR serialNumber, LPCSTR logDir, LPCSTR workDir, BOOL showOffline);
 BOOL LtfsRegRemoveMapping(CHAR driveLetter);
 BOOL LtfsRegGetMappingCount(BYTE *numMappings);
-BOOL LtfsRegGetMappingProperties(CHAR driveLetter, LPSTR deviceName, USHORT deviceNameLength);
+BOOL LtfsRegGetMappingProperties(CHAR driveLetter, LPSTR deviceName, USHORT deviceNameLength, LPSTR serialNumber, USHORT serialNumberLength);

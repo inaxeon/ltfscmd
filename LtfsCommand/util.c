@@ -17,6 +17,7 @@
  */
 
 #include "pch.h"
+#include "util.h"
 
 BOOL PollFileSystem(CHAR driveLetter)
 {

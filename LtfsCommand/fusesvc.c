@@ -17,6 +17,7 @@
  */
 
 #include "pch.h"
+#include "fusesvc.h"
 
 BOOL FuseStartService()
 {

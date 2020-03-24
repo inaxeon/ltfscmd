@@ -28,6 +28,7 @@
 
 typedef enum {
 	ListDrives,
+	ListMappings,
 	MapDrive,
 	UnmapDrive,
 	Start,
@@ -39,6 +40,7 @@ typedef enum {
 } Operation;
 
 static int ListTapeDrives();
+static int ListDriveMappings();
 static int StartLtfsService();
 static int StopLtfsService();
 static int MapTapeDrive(CHAR driveLetter, LPCSTR tapeDrive, BYTE tapeIndex, LPCSTR logDir, LPCSTR workDir, BOOL showOffline);
@@ -72,8 +74,10 @@ int main(int argc, char *argv[])
 		{
 		case 'o':
 		{
-			if (!_stricmp(optarg, "list"))
+			if (!_stricmp(optarg, "listdrives"))
 				operation = ListDrives;
+			else if (!_stricmp(optarg, "listmappings"))
+				operation = ListMappings;
 			else if (!_stricmp(optarg, "map"))
 				operation = MapDrive;
 			else if (!_stricmp(optarg, "unmap"))
@@ -161,7 +165,9 @@ int main(int argc, char *argv[])
 		{
 			fprintf(stderr, "\r\nUsage: %s -o operation [options]\r\n\r\n"
 				"List tape drives:\r\n\r\n"
-				"\t%s -o list\r\n\r\n"
+				"\t%s -o listdrives\r\n\r\n"
+				"List mappings:\r\n\r\n"
+				"\t%s -o listmappings\r\n\r\n"
 				"Map tape drive:\r\n\r\n"
 				"\t%s -o map -d DRIVE: -t TAPEn [-n]\r\n"
 				"\t\t[-l logdir] [-w workdir]\r\n\r\n"
@@ -194,7 +200,7 @@ int main(int argc, char *argv[])
 				"\toperating system.\r\n\r\n"
 				"Unmount filesystem and physically eject tape:\r\n\r\n"
 				"\t%s -o eject -d DRIVE:\r\n\r\n"
-				, argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0]);
+				, argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0]);
 			return EXIT_FAILURE;
 		}
 		}
@@ -227,6 +233,9 @@ int main(int argc, char *argv[])
 	{
 	case ListDrives:
 		return ListTapeDrives();
+
+	case ListMappings:
+		return ListDriveMappings();
 
 	case Start:
 		return StartLtfsService();
@@ -267,7 +276,7 @@ static int ListTapeDrives()
 
 		while (drive != NULL)
 		{
-			printf("TAPE%d: %s: %s %s\r\n", drive->DevIndex, drive->SerialNumber, drive->VendorId, drive->ProductId);
+			printf("TAPE%d: [%s] %s %s\r\n", drive->DevIndex, drive->SerialNumber, drive->VendorId, drive->ProductId);
 			drive = drive->Next;
 		}
 
@@ -276,8 +285,41 @@ static int ListTapeDrives()
 		return EXIT_SUCCESS;
 	}
 
-	fprintf(stderr, "\r\nNo tape drives found.\r\n");
-	return EXIT_FAILURE;
+	printf("\r\nNo tape drives found.\r\n");
+	return EXIT_SUCCESS;
+}
+
+static int ListDriveMappings()
+{
+	char driveLetter;
+	BYTE numMappings;
+
+	if (!LtfsRegGetMappingCount(&numMappings))
+	{
+		fprintf(stderr, "Failed to get mappings from registry.\r\n");
+		return EXIT_FAILURE;
+	}
+
+	if (!numMappings)
+	{
+		printf("\r\nNo mappings found.\r\n");
+		return EXIT_SUCCESS;
+	}
+
+	printf("\r\nCurrent drive mappings:\r\n\r\n");
+
+	for (driveLetter = MIN_DRIVE_LETTER; driveLetter <= MAX_DRIVE_LETTER; driveLetter++)
+	{
+		char serialNumber[MAX_SERIAL_NUMBER];
+		char devName[MAX_DEVICE_NAME];
+
+		if (LtfsRegGetMappingProperties(driveLetter, devName, _countof(devName), serialNumber, _countof(serialNumber)))
+		{
+			printf("%c: %s [%s]\r\n", driveLetter, devName, serialNumber);
+		}
+	}
+
+	return EXIT_SUCCESS;
 }
 
 static int StartLtfsService()
@@ -329,7 +371,7 @@ static int MapTapeDrive(CHAR driveLetter, LPCSTR tapeDrive, BYTE tapeIndex, LPCS
 			{
 				driveFound = TRUE;
 
-				if (LtfsRegGetMappingProperties(driveLetter, NULL, 0))
+				if (LtfsRegGetMappingProperties(driveLetter, NULL, 0, NULL, 0))
 				{
 					fprintf(stderr, "Mapping for %c: arleady exists.\r\n", driveLetter);
 				}
@@ -360,7 +402,7 @@ static int MapTapeDrive(CHAR driveLetter, LPCSTR tapeDrive, BYTE tapeIndex, LPCS
 			return EXIT_FAILURE;
 		}
 
-		success = StopLtfsService();
+		success = FuseStopService();
 
 		if (!success)
 		{
@@ -368,13 +410,15 @@ static int MapTapeDrive(CHAR driveLetter, LPCSTR tapeDrive, BYTE tapeIndex, LPCS
 			return EXIT_FAILURE;
 		}
 
-		success = StartLtfsService();
+		success = FuseStartService();
 
 		if (!success)
 		{
 			fprintf(stderr, "Failed to start LTFS service.\r\n");
 			return EXIT_FAILURE;
 		}
+
+		// Need to check file system here
 
 		return EXIT_SUCCESS;
 	}
@@ -435,10 +479,10 @@ static int UnmapTapeDrive(CHAR driveLetter)
 
 static int LoadTapeDrive(CHAR driveLetter, BOOL mount)
 {
-	char devName[64];
+	char devName[MAX_DEVICE_NAME];
 	BOOL result = FALSE;
 
-	result = LtfsRegGetMappingProperties(driveLetter, devName, _countof(devName));
+	result = LtfsRegGetMappingProperties(driveLetter, devName, _countof(devName), NULL, 0);
 
 	if (!result)
 	{
@@ -485,7 +529,7 @@ static int EjectTapeDrive(CHAR driveLetter)
 	char devName[64];
 	BOOL result = FALSE;
 
-	result = LtfsRegGetMappingProperties(driveLetter, devName, _countof(devName));
+	result = LtfsRegGetMappingProperties(driveLetter, devName, _countof(devName), NULL, 0);
 
 	if (!result)
 	{

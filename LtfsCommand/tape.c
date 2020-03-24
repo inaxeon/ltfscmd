@@ -22,7 +22,7 @@
 #define TC_MP_MEDIUM_PARTITION         0x11
 #define TC_MP_MEDIUM_PARTITION_SIZE    28
 
-static BOOL ScsiIoControl(HANDLE hFile, DWORD deviceNumber, PVOID cdb, UCHAR cdbLength, PVOID dataBuffer, USHORT bufferLength, UCHAR senseInfoLength, BYTE dataIn, ULONG timeoutValue);
+static BOOL ScsiIoControl(HANDLE hFile, DWORD deviceNumber, PVOID cdb, UCHAR cdbLength, PVOID dataBuffer, USHORT bufferLength, BYTE dataIn, ULONG timeoutValue);
 
 BOOL TapeGetDriveList(PTAPE_DRIVE *driveList, PDWORD numDrivesFound)
 {
@@ -60,10 +60,11 @@ BOOL TapeGetDriveList(PTAPE_DRIVE *driveList, PDWORD numDrivesFound)
 
 						PTAPE_DRIVE driveData = (PTAPE_DRIVE)LocalAlloc(LMEM_FIXED, sizeof(TAPE_DRIVE));
 						driveData->Next = NULL;
-						driveData->DevIndex = devIndex;
 
 						DWORD lpBytesReturned;
 						result = DeviceIoControl(handle, IOCTL_STORAGE_GET_DEVICE_NUMBER, NULL, 0, &devNum, sizeof(STORAGE_DEVICE_NUMBER), &lpBytesReturned, NULL);
+
+						driveData->DevIndex = devNum.DeviceNumber;
 
 						if (result)
 						{
@@ -73,7 +74,7 @@ BOOL TapeGetDriveList(PTAPE_DRIVE *driveList, PDWORD numDrivesFound)
 							((PCDB)(cdb))->CDB6INQUIRY.OperationCode = SCSIOP_INQUIRY;
 							((PCDB)(cdb))->CDB6INQUIRY.IReserved = 4;
 
-							result = ScsiIoControl(handle, devNum.DeviceNumber, cdb, sizeof(cdb), dataBuffer, sizeof(dataBuffer), 64, 1, 10);
+							result = ScsiIoControl(handle, devNum.DeviceNumber, cdb, sizeof(cdb), dataBuffer, sizeof(dataBuffer), SCSI_IOCTL_DATA_IN, 10);
 
 							if (result)
 							{
@@ -93,7 +94,7 @@ BOOL TapeGetDriveList(PTAPE_DRIVE *driveList, PDWORD numDrivesFound)
 							((PCDB)(cdb))->CDB6INQUIRY.PageCode = 0x80;
 							((PCDB)(cdb))->CDB6INQUIRY.Reserved1 = 1;
 
-							BOOL result = ScsiIoControl(handle, devNum.DeviceNumber, cdb, sizeof(cdb), dataBuffer, sizeof(dataBuffer), 64, 1, 10);
+							BOOL result = ScsiIoControl(handle, devNum.DeviceNumber, cdb, sizeof(cdb), dataBuffer, sizeof(dataBuffer), SCSI_IOCTL_DATA_IN, 10);
 
 							if (result)
 							{
@@ -111,9 +112,10 @@ BOOL TapeGetDriveList(PTAPE_DRIVE *driveList, PDWORD numDrivesFound)
 							((PCDB)(cdb))->MODE_SENSE.PageCode = TC_MP_MEDIUM_PARTITION;
 							((PCDB)(cdb))->MODE_SENSE.AllocationLength = 255;
 
-							BOOL result = ScsiIoControl(handle, devNum.DeviceNumber, cdb, sizeof(cdb), dataBuffer, sizeof(dataBuffer), 64, 1, 10);
+							BOOL result = ScsiIoControl(handle, devNum.DeviceNumber, cdb, sizeof(cdb), dataBuffer, sizeof(dataBuffer), SCSI_IOCTL_DATA_IN, 10);
 
-							// Fuck knows
+							// Fuck knows. LTFSConfigurator.exe performs this operation (and others), which it appears may be able to tell us whether or not the 
+							// drive is compatible with LTFS. I have yet to figure out how to parse this data to perform this test, so we're not doing it at present.
 						}
 
 						if (result)
@@ -154,11 +156,12 @@ BOOL TapeGetDriveList(PTAPE_DRIVE *driveList, PDWORD numDrivesFound)
 
 void TapeDestroyDriveList(PTAPE_DRIVE driveList)
 {
-	PTAPE_DRIVE current = driveList;
+	PTAPE_DRIVE drive = driveList;
 
-	while (current != NULL) {
-		PTAPE_DRIVE toFree = current;
-		current = current->Next;
+	while (drive != NULL)
+	{
+		PTAPE_DRIVE toFree = drive;
+		drive = drive->Next;
 		LocalFree(toFree);
 	}
 }
@@ -182,7 +185,7 @@ BOOL TapeLoad(LPCSTR tapeDrive)
 	((PCDB)(cdb))->START_STOP.OperationCode = SCSIOP_LOAD_UNLOAD;
 	((PCDB)(cdb))->START_STOP.Start = 1;
 
-	result = ScsiIoControl(handle, 0, cdb, sizeof(cdb), NULL, 0, 0, 2, 300);
+	result = ScsiIoControl(handle, 0, cdb, sizeof(cdb), NULL, 0, SCSI_IOCTL_DATA_UNSPECIFIED, 300);
 	
 	CloseHandle(handle);
 
@@ -220,21 +223,21 @@ BOOL TapeEject(LPCSTR tapeDrive)
 	return result;
 }
 
-static BOOL ScsiIoControl(HANDLE hFile, DWORD deviceNumber, PVOID cdb, UCHAR cdbLength, PVOID dataBuffer, USHORT bufferLength, UCHAR senseInfoLength, BYTE dataIn, ULONG timeoutValue)
+#define SENSE_INFO_LEN 64
+
+static BOOL ScsiIoControl(HANDLE hFile, DWORD deviceNumber, PVOID cdb, UCHAR cdbLength, PVOID dataBuffer, USHORT bufferLength, BYTE dataIn, ULONG timeoutValue)
 {
 	DWORD bytesReturned;
-	BYTE scsiBuffer[sizeof(SCSI_PASS_THROUGH_DIRECT) + 72];
+	BYTE scsiBuffer[sizeof(SCSI_PASS_THROUGH_DIRECT) + SENSE_INFO_LEN];
 
 	PSCSI_PASS_THROUGH_DIRECT scsiDirect = (PSCSI_PASS_THROUGH_DIRECT)scsiBuffer;
 	memset(scsiDirect, 0, sizeof(scsiBuffer));
 
-	// Device number????
-
 	scsiDirect->Length = sizeof(SCSI_PASS_THROUGH_DIRECT);
 	scsiDirect->CdbLength = cdbLength;
 	scsiDirect->DataBuffer = dataBuffer;
-	scsiDirect->SenseInfoLength = senseInfoLength;
-	scsiDirect->SenseInfoOffset = sizeof(scsiBuffer) / 2;
+	scsiDirect->SenseInfoLength = SENSE_INFO_LEN;
+	scsiDirect->SenseInfoOffset = sizeof(SCSI_PASS_THROUGH_DIRECT);
 	scsiDirect->DataTransferLength = bufferLength;
 	scsiDirect->TimeOutValue = timeoutValue;
 	scsiDirect->DataIn = dataIn;
