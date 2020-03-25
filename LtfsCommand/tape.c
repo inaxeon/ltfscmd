@@ -213,11 +213,12 @@ BOOL TapeCheckMedia(LPCSTR tapeDrive, LPSTR mediaDesc, size_t len)
     ((PCDB)(cdb))->MODE_SENSE10.OperationCode = SCSIOP_MODE_SENSE10;
     ((PCDB)(cdb))->MODE_SENSE10.PageCode = TC_MP_MEDIUM_CONFIGURATION;
     ((PCDB)(cdb))->MODE_SENSE10.Pc = TC_MP_PC_CURRENT;
-    ((PCDB)(cdb))->MODE_SENSE10.AllocationLength[1] = 64;
+    ((PCDB)(cdb))->MODE_SENSE10.AllocationLength[0] = sizeof(dataBuffer) >> 8;
+    ((PCDB)(cdb))->MODE_SENSE10.AllocationLength[1] = sizeof(dataBuffer) & 0xFF;
 
     result = ScsiIoControl(handle, 0, cdb, sizeof(cdb), dataBuffer, sizeof(dataBuffer), SCSI_IOCTL_DATA_IN, 300, NULL);
 
-    int mediaType = (int)dataBuffer[8] + ((int)(dataBuffer[18] & 0x01) << 8);
+    USHORT mediaType = (USHORT)dataBuffer[8] + ((USHORT)(dataBuffer[18] & 0x01) << 8);
 
     switch (mediaType)
     {
