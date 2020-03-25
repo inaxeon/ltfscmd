@@ -199,6 +199,12 @@ BOOL TapeCheckMedia(LPCSTR tapeDrive, LPSTR mediaDesc, size_t len)
 
     result = ScsiIoControl(handle, 0, cdb, sizeof(cdb), dataBuffer, sizeof(dataBuffer), SCSI_IOCTL_DATA_IN, 300, senseBuffer);
 
+    if (!result)
+    {
+        CloseHandle(handle);
+        return FALSE;
+    }
+
     if (((senseBuffer[2] & 0x0F) == 0x02) && (senseBuffer[12] == 0x3A) && (senseBuffer[13] == 0x00))
     {
         strcpy_s(mediaDesc, len, "No tape loaded");
