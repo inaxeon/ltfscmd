@@ -226,6 +226,10 @@ BOOL TapeCheckMedia(LPCSTR tapeDrive, LPSTR mediaDesc, size_t len)
 
     USHORT mediaType = (USHORT)dataBuffer[8] + ((USHORT)(dataBuffer[18] & 0x01) << 8);
 
+    // I don't have a WORM cartridge to test, so only set the below bit if it's definitely not WORM.
+    if (!(mediaType & 0x100))
+        mediaType |= ((USHORT)(dataBuffer[3] & 0x80) << 2);
+
     switch (mediaType)
     {
     case 0x005E:
@@ -234,11 +238,17 @@ BOOL TapeCheckMedia(LPCSTR tapeDrive, LPSTR mediaDesc, size_t len)
     case 0x015E:
         strcpy_s(mediaDesc, len, "LTO8 WORM");
         break;
+    case 0x025E:
+        strcpy_s(mediaDesc, len, "LTO8 RO");
+        break;
     case 0x005D:
         strcpy_s(mediaDesc, len, "LTOM8 RW");
         break;
     case 0x015D:
         strcpy_s(mediaDesc, len, "LTOM8 WORM");
+        break;
+    case 0x025D:
+        strcpy_s(mediaDesc, len, "LTOM8 RO");
         break;
     case 0x005C:
         strcpy_s(mediaDesc, len, "LTO7 RW");
@@ -246,11 +256,17 @@ BOOL TapeCheckMedia(LPCSTR tapeDrive, LPSTR mediaDesc, size_t len)
     case 0x015C:
         strcpy_s(mediaDesc, len, "LTO7 WORM");
         break;
+    case 0x025C:
+        strcpy_s(mediaDesc, len, "LTO7 RO");
+        break;
     case 0x005A:
         strcpy_s(mediaDesc, len, "LTO6 RW");
         break;
     case 0x015A:
         strcpy_s(mediaDesc, len, "LTO6 WORM");
+        break;
+    case 0x025A:
+        strcpy_s(mediaDesc, len, "LTO6 RO");
         break;
     case 0x0058:
         strcpy_s(mediaDesc, len, "LTO5 RW");
@@ -258,17 +274,26 @@ BOOL TapeCheckMedia(LPCSTR tapeDrive, LPSTR mediaDesc, size_t len)
     case 0x0158:
         strcpy_s(mediaDesc, len, "LTO5 WORM");
         break;
+    case 0x0258:
+        strcpy_s(mediaDesc, len, "LTO5 RO");
+        break;
     case 0x0046:
         strcpy_s(mediaDesc, len, "LTO4 RW");
         break;
     case 0x0146:
         strcpy_s(mediaDesc, len, "LTO4 WORM");
         break;
+    case 0x0246:
+        strcpy_s(mediaDesc, len, "LTO4 RO");
+        break;
     case 0x0044:
         strcpy_s(mediaDesc, len, "LTO3 RW");
         break;
     case 0x0144:
         strcpy_s(mediaDesc, len, "LTO3 WORM");
+        break;
+    case 0x0244:
+        strcpy_s(mediaDesc, len, "LTO3 RO");
         break;
     default:
         _snprintf_s(mediaDesc, len, _TRUNCATE, "Unknown media type 0x%X", mediaType);
