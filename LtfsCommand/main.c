@@ -28,6 +28,7 @@
 
 typedef enum
 {
+    None,
     ListDrives,
     ListMappings,
     MapDrive,
@@ -57,7 +58,7 @@ static int CheckTapeMedia(CHAR driveLetter);
 int main(int argc, char *argv[])
 {
     int opt = 0;
-    Operation operation;
+    Operation operation = None;
     BOOL showOffline = TRUE;
     BOOL driveLetterArgFound = FALSE;
     BOOL tapeDriveArgFound = FALSE;
@@ -218,6 +219,12 @@ int main(int argc, char *argv[])
                 return EXIT_FAILURE;
             }
         }
+    }
+
+    if (operation == None)
+    {
+        fprintf(stderr, "\r\nNo operation specified.\r\n");
+        return EXIT_FAILURE;
     }
 
     if (operation == MapDrive ||
