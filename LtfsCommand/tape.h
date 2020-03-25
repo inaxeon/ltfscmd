@@ -34,4 +34,5 @@ typedef struct TAPE_DRIVE
 BOOL TapeGetDriveList(PTAPE_DRIVE *driveList, PDWORD numDrivesFound);
 void TapeDestroyDriveList(PTAPE_DRIVE driveList);
 BOOL TapeLoad(LPCSTR tapeDrive);
-BOOL TapeEject(LPCSTR tapeDriveA);
+BOOL TapeEject(LPCSTR tapeDrive);
+BOOL TapeCheckMedia(LPCSTR tapeDrive, LPSTR mediaDesc, size_t len);

@@ -38,7 +38,8 @@ typedef enum
     Remap,
     LoadOnly,
     Mount,
-    Eject
+    Eject,
+    CheckMedia
 } Operation;
 
 static int ListTapeDrives();
@@ -51,6 +52,7 @@ static int UnmapTapeDrive(CHAR driveLetter);
 static int LoadTapeDrive(CHAR driveLetter, BOOL mount);
 static int EjectTapeDrive(CHAR driveLetter);
 static int MountTapeDrive(CHAR driveLetter);
+static int CheckTapeMedia(CHAR driveLetter);
 
 int main(int argc, char *argv[])
 {
@@ -99,6 +101,8 @@ int main(int argc, char *argv[])
                 operation = Mount;
             else if (!_stricmp(optarg, "eject"))
                 operation = Eject;
+            else if (!_stricmp(optarg, "checkmedia"))
+                operation = CheckMedia;
             else
             {
                 fprintf(stderr, "\r\nInvalid operation.\r\n");
@@ -176,7 +180,7 @@ int main(int argc, char *argv[])
                     "\t\t[-l logdir] [-w workdir]\r\n\r\n"
                     "\tReplace DRIVE: with your intended drive letter i.e. T:\r\n"
                     "\tReplace TAPEn with the tape device name returned from the list\r\n"
-                    "\toperation i.e. TAPE0.\r\n\r\n"
+                    "\tdrives operation i.e. TAPE0.\r\n\r\n"
                     "\tPass -n to show all files as 'online'. Not recommended.\r\n"
                     "\tPass -l and/or -w to override default log and working\r\n"
                     "\tdirectories.\r\n\r\n"
@@ -185,7 +189,7 @@ int main(int argc, char *argv[])
                     "Fix existing mappings:\r\n\r\n"
                     "\t%s -o remap\r\n\r\n"
                     "\tIn some cases, particularly when drives are hot-plugged, the\r\n"
-                    "\tdevice index may change i.e. from TAPE0 to TAPE1 breaking an\r\n"
+                    "\tdevice index may change i.e. from TAPE0 to TAPE1, breaking an\r\n"
                     "\texisting mapping. This operation will repair existing mappings.\r\n\r\n"
                     "Start FUSE/LTFS service:\r\n\r\n"
                     "\t%s -o start\r\n\r\n"
@@ -208,7 +212,9 @@ int main(int argc, char *argv[])
                     "\toperating system.\r\n\r\n"
                     "Unmount filesystem and physically eject tape:\r\n\r\n"
                     "\t%s -o eject -d DRIVE:\r\n\r\n"
-                    , argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0]);
+                    "Check if a tape is loaded and report type:\r\n\r\n"
+                    "\t%s -o checkmedia -d DRIVE:\r\n\r\n"
+                    , argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0], argv[0]);
                 return EXIT_FAILURE;
             }
         }
@@ -219,7 +225,8 @@ int main(int argc, char *argv[])
         operation == Load ||
         operation == LoadOnly ||
         operation == Mount ||
-        operation == Eject)
+        operation == Eject ||
+        operation == CheckMedia)
     {
         if (!driveLetterArgFound)
         {
@@ -271,6 +278,9 @@ int main(int argc, char *argv[])
 
     case Eject:
         return EjectTapeDrive(driveLetter);
+
+    case CheckMedia:
+        return CheckTapeMedia(driveLetter);
     }
 }
 
@@ -571,7 +581,7 @@ static int RemapTapeDrives()
         return EXIT_SUCCESS;
     }
 
-    fprintf(stderr, "No tape drives found.\r\n");
+    fprintf(stderr, "\r\nNo tape drives found.\r\n");
     return EXIT_FAILURE;
 }
 
@@ -584,7 +594,7 @@ static int LoadTapeDrive(CHAR driveLetter, BOOL mount)
 
     if (!result)
     {
-        fprintf(stderr, "Mapping for %c: does not exist.\r\n", driveLetter);
+        fprintf(stderr, "\r\nMapping for %c: does not exist.\r\n", driveLetter);
         return EXIT_FAILURE;
     }
 
@@ -601,7 +611,7 @@ static int LoadTapeDrive(CHAR driveLetter, BOOL mount)
 
         if (!result)
         {
-            fprintf(stderr, "Cannot start file system. LTFS not running.\r\n");
+            fprintf(stderr, "\r\nCannot start file system. LTFS not running.\r\n");
             return EXIT_FAILURE;
         }
     }
@@ -615,7 +625,7 @@ static int MountTapeDrive(CHAR driveLetter)
 
     if (!result)
     {
-        fprintf(stderr, "Cannot start file system. LTFS not running.\r\n");
+        fprintf(stderr, "\r\nCannot start file system. LTFS not running.\r\n");
         return EXIT_FAILURE;
     }
 
@@ -624,14 +634,14 @@ static int MountTapeDrive(CHAR driveLetter)
 
 static int EjectTapeDrive(CHAR driveLetter)
 {
-    char devName[64];
+    CHAR devName[MAX_DEVICE_NAME];
     BOOL result = FALSE;
 
     result = LtfsRegGetMappingProperties(driveLetter, devName, _countof(devName), NULL, 0);
 
     if (!result)
     {
-        fprintf(stderr, "Mapping for %c: does not exist.\r\n", driveLetter);
+        fprintf(stderr, "\r\nMapping for %c: does not exist.\r\n", driveLetter);
         return EXIT_FAILURE;
     }
 
@@ -639,11 +649,11 @@ static int EjectTapeDrive(CHAR driveLetter)
 
     if (!result)
     {
-        fprintf(stderr, "Failed to eject tape.\r\n");
+        fprintf(stderr, "\r\nFailed to eject tape.\r\n");
         return EXIT_FAILURE;
     }
 
-    // Not sure why LTFSConfigurator does this, but we'll do it too.
+    // Not sure why LTFSConfigurator.exe does this, but we'll do it too.
     result = PollFileSystem(driveLetter);
 
     if (!result)
@@ -651,5 +661,32 @@ static int EjectTapeDrive(CHAR driveLetter)
         return EXIT_FAILURE;
     }
 
+    return EXIT_SUCCESS;
+}
+
+static int CheckTapeMedia(CHAR driveLetter)
+{
+    CHAR mediaDesc[128];
+    CHAR devName[MAX_DEVICE_NAME];
+
+    BOOL result = FALSE;
+
+    result = LtfsRegGetMappingProperties(driveLetter, devName, _countof(devName), NULL, 0);
+
+    if (!result)
+    {
+        fprintf(stderr, "\r\nMapping for %c: does not exist.\r\n", driveLetter);
+        return EXIT_FAILURE;
+    }
+
+    result = TapeCheckMedia(devName, mediaDesc, _countof(mediaDesc));
+
+    if (!result)
+    {
+        fprintf(stderr, "\r\nMedia check failed.\r\n");
+        return EXIT_FAILURE;
+    }
+
+    printf("\r\n%s: %s\r\n", devName, mediaDesc);
     return EXIT_SUCCESS;
 }

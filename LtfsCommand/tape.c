@@ -19,10 +19,16 @@
 #include "pch.h"
 #include "tape.h"
 
-#define TC_MP_MEDIUM_PARTITION         0x11
-#define TC_MP_MEDIUM_PARTITION_SIZE    28
+#define TC_MP_PC_CURRENT                 0x00
+#define TC_MP_PC_CHANGEABLE              0x40
 
-static BOOL ScsiIoControl(HANDLE hFile, DWORD deviceNumber, PVOID cdb, UCHAR cdbLength, PVOID dataBuffer, USHORT bufferLength, BYTE dataIn, ULONG timeoutValue);
+#define TC_MP_MEDIUM_CONFIGURATION       0x1D
+#define TC_MP_MEDIUM_PARTITION           0x11
+#define TC_MP_MEDIUM_PARTITION_SIZE      28
+
+#define SENSE_INFO_LEN                   64
+
+static BOOL ScsiIoControl(HANDLE hFile, DWORD deviceNumber, PVOID cdb, UCHAR cdbLength, PVOID dataBuffer, USHORT bufferLength, BYTE dataIn, ULONG timeoutValue, PVOID senseBuffer);
 
 BOOL TapeGetDriveList(PTAPE_DRIVE *driveList, PDWORD numDrivesFound)
 {
@@ -74,7 +80,7 @@ BOOL TapeGetDriveList(PTAPE_DRIVE *driveList, PDWORD numDrivesFound)
                             ((PCDB)(cdb))->CDB6INQUIRY.OperationCode = SCSIOP_INQUIRY;
                             ((PCDB)(cdb))->CDB6INQUIRY.IReserved = 4;
 
-                            result = ScsiIoControl(handle, devNum.DeviceNumber, cdb, sizeof(cdb), dataBuffer, sizeof(dataBuffer), SCSI_IOCTL_DATA_IN, 10);
+                            result = ScsiIoControl(handle, devNum.DeviceNumber, cdb, sizeof(cdb), dataBuffer, sizeof(dataBuffer), SCSI_IOCTL_DATA_IN, 10, NULL);
 
                             if (result)
                             {
@@ -94,7 +100,7 @@ BOOL TapeGetDriveList(PTAPE_DRIVE *driveList, PDWORD numDrivesFound)
                             ((PCDB)(cdb))->CDB6INQUIRY.PageCode = 0x80;
                             ((PCDB)(cdb))->CDB6INQUIRY.Reserved1 = 1;
 
-                            BOOL result = ScsiIoControl(handle, devNum.DeviceNumber, cdb, sizeof(cdb), dataBuffer, sizeof(dataBuffer), SCSI_IOCTL_DATA_IN, 10);
+                            BOOL result = ScsiIoControl(handle, devNum.DeviceNumber, cdb, sizeof(cdb), dataBuffer, sizeof(dataBuffer), SCSI_IOCTL_DATA_IN, 10, NULL);
 
                             if (result)
                             {
@@ -112,7 +118,7 @@ BOOL TapeGetDriveList(PTAPE_DRIVE *driveList, PDWORD numDrivesFound)
                             ((PCDB)(cdb))->MODE_SENSE.PageCode = TC_MP_MEDIUM_PARTITION;
                             ((PCDB)(cdb))->MODE_SENSE.AllocationLength = 255;
 
-                            BOOL result = ScsiIoControl(handle, devNum.DeviceNumber, cdb, sizeof(cdb), dataBuffer, sizeof(dataBuffer), SCSI_IOCTL_DATA_IN, 10);
+                            BOOL result = ScsiIoControl(handle, devNum.DeviceNumber, cdb, sizeof(cdb), dataBuffer, sizeof(dataBuffer), SCSI_IOCTL_DATA_IN, 10, NULL);
 
                             // Fuck knows. LTFSConfigurator.exe performs this operation (and others), which it appears may be able to tell us whether or not the 
                             // drive is compatible with LTFS. I have yet to figure out how to parse this data to perform this test, so we're not doing it at present.
@@ -166,6 +172,106 @@ void TapeDestroyDriveList(PTAPE_DRIVE driveList)
     }
 }
 
+BOOL TapeCheckMedia(LPCSTR tapeDrive, LPSTR mediaDesc, size_t len)
+{
+    CHAR drivePath[64];
+    HANDLE handle;
+    BOOL result = FALSE;
+    BYTE cdb[10];
+    BYTE dataBuffer[64];
+    BYTE senseBuffer[SENSE_INFO_LEN];
+
+    _snprintf_s(drivePath, _countof(drivePath), _TRUNCATE, "\\\\.\\%s", tapeDrive);
+
+    handle = CreateFile(drivePath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+
+    if (handle == INVALID_HANDLE_VALUE)
+        return FALSE;
+
+    memset(cdb, 0, sizeof(cdb));
+    memset(senseBuffer, 0, sizeof(senseBuffer));
+
+    // There doesn't appear to be a direct way to tell if there's anything in the drive, so instead we just try and read the position
+    // which won't fuck up a mounted LTFS volume. If there's no tape, the drive will tell us in the sense data.
+
+    ((PCDB)(cdb))->READ_POSITION.Operation = SCSIOP_READ_POSITION;
+    ((PCDB)(cdb))->READ_POSITION.Reserved1 = 0x03;
+
+    result = ScsiIoControl(handle, 0, cdb, sizeof(cdb), dataBuffer, sizeof(dataBuffer), SCSI_IOCTL_DATA_IN, 300, senseBuffer);
+
+    if (((senseBuffer[2] & 0x0F) == 0x02) && (senseBuffer[12] == 0x3A) && (senseBuffer[13] == 0x00))
+    {
+        strcpy_s(mediaDesc, len, "No tape loaded");
+        CloseHandle(handle);
+        return TRUE;
+    }
+
+    memset(cdb, 0, sizeof(cdb));
+
+    // This will only tell us the *last* tape that was in the drive, which is why we have to do the above check first
+
+    ((PCDB)(cdb))->MODE_SENSE10.OperationCode = SCSIOP_MODE_SENSE10;
+    ((PCDB)(cdb))->MODE_SENSE10.PageCode = TC_MP_MEDIUM_CONFIGURATION;
+    ((PCDB)(cdb))->MODE_SENSE10.Pc = TC_MP_PC_CURRENT;
+    ((PCDB)(cdb))->MODE_SENSE10.AllocationLength[1] = 64;
+
+    result = ScsiIoControl(handle, 0, cdb, sizeof(cdb), dataBuffer, sizeof(dataBuffer), SCSI_IOCTL_DATA_IN, 300, NULL);
+
+    int mediaType = (int)dataBuffer[8] + ((int)(dataBuffer[18] & 0x01) << 8);
+
+    switch (mediaType)
+    {
+    case 0x005E:
+        strcpy_s(mediaDesc, len, "LTO8 RW");
+        break;
+    case 0x015E:
+        strcpy_s(mediaDesc, len, "LTO8 WORM");
+        break;
+    case 0x005D:
+        strcpy_s(mediaDesc, len, "LTOM8 RW");
+        break;
+    case 0x015D:
+        strcpy_s(mediaDesc, len, "LTOM8 WORM");
+        break;
+    case 0x005C:
+        strcpy_s(mediaDesc, len, "LTO7 RW");
+        break;
+    case 0x015C:
+        strcpy_s(mediaDesc, len, "LTO7 WORM");
+        break;
+    case 0x005A:
+        strcpy_s(mediaDesc, len, "LTO6 RW");
+        break;
+    case 0x015A:
+        strcpy_s(mediaDesc, len, "LTO6 WORM");
+        break;
+    case 0x0058:
+        strcpy_s(mediaDesc, len, "LTO5 RW");
+        break;
+    case 0x0158:
+        strcpy_s(mediaDesc, len, "LTO5 WORM");
+        break;
+    case 0x0046:
+        strcpy_s(mediaDesc, len, "LTO4 RW");
+        break;
+    case 0x0146:
+        strcpy_s(mediaDesc, len, "LTO4 WORM");
+        break;
+    case 0x0044:
+        strcpy_s(mediaDesc, len, "LTO3 RW");
+        break;
+    case 0x0144:
+        strcpy_s(mediaDesc, len, "LTO3 WORM");
+        break;
+    default:
+        _snprintf_s(mediaDesc, len, _TRUNCATE, "Unknown media type 0x%X", mediaType);
+    }
+
+    CloseHandle(handle);
+
+    return result;
+}
+
 BOOL TapeLoad(LPCSTR tapeDrive)
 {
     CHAR drivePath[64];
@@ -185,7 +291,7 @@ BOOL TapeLoad(LPCSTR tapeDrive)
     ((PCDB)(cdb))->START_STOP.OperationCode = SCSIOP_LOAD_UNLOAD;
     ((PCDB)(cdb))->START_STOP.Start = 1;
 
-    result = ScsiIoControl(handle, 0, cdb, sizeof(cdb), NULL, 0, SCSI_IOCTL_DATA_UNSPECIFIED, 300);
+    result = ScsiIoControl(handle, 0, cdb, sizeof(cdb), NULL, 0, SCSI_IOCTL_DATA_UNSPECIFIED, 300, NULL);
     
     CloseHandle(handle);
 
@@ -223,11 +329,11 @@ BOOL TapeEject(LPCSTR tapeDrive)
     return result;
 }
 
-#define SENSE_INFO_LEN 64
 
-static BOOL ScsiIoControl(HANDLE hFile, DWORD deviceNumber, PVOID cdb, UCHAR cdbLength, PVOID dataBuffer, USHORT bufferLength, BYTE dataIn, ULONG timeoutValue)
+static BOOL ScsiIoControl(HANDLE hFile, DWORD deviceNumber, PVOID cdb, UCHAR cdbLength, PVOID dataBuffer, USHORT bufferLength, BYTE dataIn, ULONG timeoutValue, PVOID senseBuffer)
 {
     DWORD bytesReturned;
+    BOOL result = FALSE;
     BYTE scsiBuffer[sizeof(SCSI_PASS_THROUGH_DIRECT) + SENSE_INFO_LEN];
 
     PSCSI_PASS_THROUGH_DIRECT scsiDirect = (PSCSI_PASS_THROUGH_DIRECT)scsiBuffer;
@@ -244,5 +350,10 @@ static BOOL ScsiIoControl(HANDLE hFile, DWORD deviceNumber, PVOID cdb, UCHAR cdb
 
     memcpy(scsiDirect->Cdb, cdb, cdbLength);
 
-    return DeviceIoControl(hFile, IOCTL_SCSI_PASS_THROUGH_DIRECT, scsiDirect, sizeof(scsiBuffer), scsiDirect, sizeof(scsiBuffer), &bytesReturned, NULL);
+    result = DeviceIoControl(hFile, IOCTL_SCSI_PASS_THROUGH_DIRECT, scsiDirect, sizeof(scsiBuffer), scsiDirect, sizeof(scsiBuffer), &bytesReturned, NULL);
+
+    if (senseBuffer)
+        memcpy(senseBuffer, scsiBuffer + sizeof(SCSI_PASS_THROUGH_DIRECT), SENSE_INFO_LEN);
+
+    return result;
 }
