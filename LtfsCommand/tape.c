@@ -157,7 +157,7 @@ BOOL TapeGetDriveList(PTAPE_DRIVE *driveList, PDWORD numDrivesFound)
     *driveList = listHead;
     *numDrivesFound = devsFound;
 
-    return devIndex > 0;
+    return devsFound > 0;
 }
 
 void TapeDestroyDriveList(PTAPE_DRIVE driveList)

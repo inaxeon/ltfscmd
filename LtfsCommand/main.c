@@ -511,7 +511,7 @@ static int RemapTapeDrives()
     
     BYTE changesMade = 0;
     DWORD numDrivesFound;
-    BOOL success = FALSE;
+    BOOL success = TRUE;
     BOOL firstOutput = TRUE;
 
     if (TapeGetDriveList(&driveList, &numDrivesFound))
