@@ -588,6 +588,9 @@ static int RemapTapeDrives()
         return EXIT_SUCCESS;
     }
 
+    // No point in the service running if there are no drives.
+    FuseStopService();
+
     fprintf(stderr, "\r\nNo tape drives found.\r\n");
     return EXIT_FAILURE;
 }
@@ -652,11 +655,12 @@ static int EjectTapeDrive(CHAR driveLetter)
         return EXIT_FAILURE;
     }
 
+    // This could do more detailed error reporting, and perhaps the ability to force dismount if files are still open.
     result = TapeEject(devName);
 
     if (!result)
     {
-        fprintf(stderr, "\r\nFailed to eject tape.\r\n");
+        fprintf(stderr, "\r\nFailed to eject tape. Ensure no files are open on the target volume.\r\n");
         return EXIT_FAILURE;
     }
 

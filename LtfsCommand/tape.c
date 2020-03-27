@@ -189,6 +189,7 @@ BOOL TapeCheckMedia(LPCSTR tapeDrive, LPSTR mediaDesc, size_t len)
         return FALSE;
 
     memset(cdb, 0, sizeof(cdb));
+    memset(dataBuffer, 0, sizeof(dataBuffer));
     memset(senseBuffer, 0, sizeof(senseBuffer));
 
     // There doesn't appear to be a direct way to tell if there's anything in the drive, so instead we just try and read the position
@@ -213,6 +214,7 @@ BOOL TapeCheckMedia(LPCSTR tapeDrive, LPSTR mediaDesc, size_t len)
     }
 
     memset(cdb, 0, sizeof(cdb));
+    memset(dataBuffer, 0, sizeof(dataBuffer));
 
     // This will only tell us the *last* tape that was in the drive, which is why we have to do the above check first
 
@@ -224,79 +226,82 @@ BOOL TapeCheckMedia(LPCSTR tapeDrive, LPSTR mediaDesc, size_t len)
 
     result = ScsiIoControl(handle, 0, cdb, sizeof(cdb), dataBuffer, sizeof(dataBuffer), SCSI_IOCTL_DATA_IN, 300, NULL);
 
-    USHORT mediaType = (USHORT)dataBuffer[8] + ((USHORT)(dataBuffer[18] & 0x01) << 8);
-
-    // I don't have a WORM cartridge to test, so only set the below bit if it's definitely not WORM.
-    if (!(mediaType & 0x100))
-        mediaType |= ((USHORT)(dataBuffer[3] & 0x80) << 2);
-
-    switch (mediaType)
+    if (result)
     {
-    case 0x005E:
-        strcpy_s(mediaDesc, len, "LTO8 RW");
-        break;
-    case 0x015E:
-        strcpy_s(mediaDesc, len, "LTO8 WORM");
-        break;
-    case 0x025E:
-        strcpy_s(mediaDesc, len, "LTO8 RO");
-        break;
-    case 0x005D:
-        strcpy_s(mediaDesc, len, "LTOM8 RW");
-        break;
-    case 0x015D:
-        strcpy_s(mediaDesc, len, "LTOM8 WORM");
-        break;
-    case 0x025D:
-        strcpy_s(mediaDesc, len, "LTOM8 RO");
-        break;
-    case 0x005C:
-        strcpy_s(mediaDesc, len, "LTO7 RW");
-        break;
-    case 0x015C:
-        strcpy_s(mediaDesc, len, "LTO7 WORM");
-        break;
-    case 0x025C:
-        strcpy_s(mediaDesc, len, "LTO7 RO");
-        break;
-    case 0x005A:
-        strcpy_s(mediaDesc, len, "LTO6 RW");
-        break;
-    case 0x015A:
-        strcpy_s(mediaDesc, len, "LTO6 WORM");
-        break;
-    case 0x025A:
-        strcpy_s(mediaDesc, len, "LTO6 RO");
-        break;
-    case 0x0058:
-        strcpy_s(mediaDesc, len, "LTO5 RW");
-        break;
-    case 0x0158:
-        strcpy_s(mediaDesc, len, "LTO5 WORM");
-        break;
-    case 0x0258:
-        strcpy_s(mediaDesc, len, "LTO5 RO");
-        break;
-    case 0x0046:
-        strcpy_s(mediaDesc, len, "LTO4 RW");
-        break;
-    case 0x0146:
-        strcpy_s(mediaDesc, len, "LTO4 WORM");
-        break;
-    case 0x0246:
-        strcpy_s(mediaDesc, len, "LTO4 RO");
-        break;
-    case 0x0044:
-        strcpy_s(mediaDesc, len, "LTO3 RW");
-        break;
-    case 0x0144:
-        strcpy_s(mediaDesc, len, "LTO3 WORM");
-        break;
-    case 0x0244:
-        strcpy_s(mediaDesc, len, "LTO3 RO");
-        break;
-    default:
-        _snprintf_s(mediaDesc, len, _TRUNCATE, "Unknown media type 0x%X", mediaType);
+        USHORT mediaType = (USHORT)dataBuffer[8] + ((USHORT)(dataBuffer[18] & 0x01) << 8);
+
+        // I don't have a WORM cartridge to test, so only set the below bit if it's definitely not WORM.
+        if (!(mediaType & 0x100))
+            mediaType |= ((USHORT)(dataBuffer[3] & 0x80) << 2);
+
+        switch (mediaType)
+        {
+        case 0x005E:
+            strcpy_s(mediaDesc, len, "LTO8 RW");
+            break;
+        case 0x015E:
+            strcpy_s(mediaDesc, len, "LTO8 WORM");
+            break;
+        case 0x025E:
+            strcpy_s(mediaDesc, len, "LTO8 RO");
+            break;
+        case 0x005D:
+            strcpy_s(mediaDesc, len, "LTOM8 RW");
+            break;
+        case 0x015D:
+            strcpy_s(mediaDesc, len, "LTOM8 WORM");
+            break;
+        case 0x025D:
+            strcpy_s(mediaDesc, len, "LTOM8 RO");
+            break;
+        case 0x005C:
+            strcpy_s(mediaDesc, len, "LTO7 RW");
+            break;
+        case 0x015C:
+            strcpy_s(mediaDesc, len, "LTO7 WORM");
+            break;
+        case 0x025C:
+            strcpy_s(mediaDesc, len, "LTO7 RO");
+            break;
+        case 0x005A:
+            strcpy_s(mediaDesc, len, "LTO6 RW");
+            break;
+        case 0x015A:
+            strcpy_s(mediaDesc, len, "LTO6 WORM");
+            break;
+        case 0x025A:
+            strcpy_s(mediaDesc, len, "LTO6 RO");
+            break;
+        case 0x0058:
+            strcpy_s(mediaDesc, len, "LTO5 RW");
+            break;
+        case 0x0158:
+            strcpy_s(mediaDesc, len, "LTO5 WORM");
+            break;
+        case 0x0258:
+            strcpy_s(mediaDesc, len, "LTO5 RO");
+            break;
+        case 0x0046:
+            strcpy_s(mediaDesc, len, "LTO4 RW");
+            break;
+        case 0x0146:
+            strcpy_s(mediaDesc, len, "LTO4 WORM");
+            break;
+        case 0x0246:
+            strcpy_s(mediaDesc, len, "LTO4 RO");
+            break;
+        case 0x0044:
+            strcpy_s(mediaDesc, len, "LTO3 RW");
+            break;
+        case 0x0144:
+            strcpy_s(mediaDesc, len, "LTO3 WORM");
+            break;
+        case 0x0244:
+            strcpy_s(mediaDesc, len, "LTO3 RO");
+            break;
+        default:
+            _snprintf_s(mediaDesc, len, _TRUNCATE, "Unknown media type 0x%X", mediaType);
+        }
     }
 
     CloseHandle(handle);
